@@ -1,13 +1,18 @@
 import express from 'express'
 import * as analyticsController from '../controllers/analyticsController.js'
-import { authMiddleware } from '../middleware/auth.js'
+import { authMiddleware, authorize } from '../middleware/auth.js'
 
 const router = express.Router()
 
 router.use(authMiddleware)
 
-router.get('/fleet/metrics', analyticsController.getFleetMetrics)
-router.get('/financial/report', analyticsController.getFinancialReport)
-router.post('/export', analyticsController.exportReport)
+// Only managers and analysts can access fleet metrics
+router.get('/fleet/metrics', authorize('manager', 'analyst'), analyticsController.getFleetMetrics)
+
+// Only managers and analysts can access financial reports
+router.get('/financial/report', authorize('manager', 'analyst'), analyticsController.getFinancialReport)
+
+// Only managers and analysts can export reports
+router.post('/export', authorize('manager', 'analyst'), analyticsController.exportReport)
 
 export default router

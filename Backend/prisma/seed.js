@@ -262,9 +262,7 @@ async function main() {
           endPoint: 'Pune Market',
           status: 'dispatched',
           startOdometer: 67890,
-          endOdometer: null,
           startTime: new Date('2026-02-21'),
-          endTime: null,
         },
       }),
       prisma.trip.create({
@@ -276,9 +274,6 @@ async function main() {
           endPoint: 'Hyderabad Center',
           status: 'draft',
           startOdometer: 28500,
-          endOdometer: null,
-          startTime: null,
-          endTime: null,
         },
       }),
     ])

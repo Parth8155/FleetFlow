@@ -133,48 +133,85 @@ npm start
 npm run lint
 ```
 
-## API Endpoints
+## API Authentication
 
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/logout` - User logout
+All API endpoints (except `/api/auth/register` and `/api/auth/login`) require JWT authentication.
+
+### Getting Started with Auth
+
+1. **Register or Login**
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "manager@fleetflow.com",
+    "password": "password123"
+  }'
+```
+
+2. **Use the returned token in requests**
+```bash
+curl -X GET http://localhost:5000/api/vehicles \
+  -H "Authorization: Bearer your_jwt_token_here"
+```
+
+### User Roles & Permissions
+
+| Role | Permissions |
+|------|-------------|
+| **Manager** | Full system access, user management, all reports |
+| **Dispatcher** | Manage trips, assign vehicles/drivers, view status |
+| **Safety Officer** | Driver compliance, maintenance oversight, reports |
+| **Data Analyst** | View analytics, generate reports, export data |
+
+**For detailed auth documentation, see [AUTHENTICATION.md](AUTHENTICATION.md)**
+
+### Test Credentials
+
+After running `npm run prisma:seed`:
+
+```
+Manager:     manager@fleetflow.com / password123
+Dispatcher:  dispatcher@fleetflow.com / password123
+Safety:      safety@fleetflow.com / password123
+Analyst:     analyst@fleetflow.com / password123
+```
 
 ### Vehicles
-- `GET /api/vehicles` - Get all vehicles
-- `POST /api/vehicles` - Create vehicle
-- `GET /api/vehicles/:id` - Get vehicle by ID
-- `PUT /api/vehicles/:id` - Update vehicle
-- `DELETE /api/vehicles/:id` - Delete vehicle
+- `GET /api/vehicles` - Get all vehicles *(manager, dispatcher, safety, analyst)*
+- `POST /api/vehicles` - Create vehicle *(manager only)*
+- `GET /api/vehicles/:id` - Get vehicle by ID *(manager, dispatcher, safety, analyst)*
+- `PUT /api/vehicles/:id` - Update vehicle *(manager, dispatcher)*
+- `DELETE /api/vehicles/:id` - Delete vehicle *(manager only)*
 
 ### Drivers
-- `GET /api/drivers` - Get all drivers
-- `POST /api/drivers` - Create driver
-- `GET /api/drivers/:id` - Get driver by ID
-- `PUT /api/drivers/:id` - Update driver
-- `DELETE /api/drivers/:id` - Delete driver
+- `GET /api/drivers` - Get all drivers *(manager, dispatcher, safety)*
+- `POST /api/drivers` - Create driver *(manager only)*
+- `GET /api/drivers/:id` - Get driver by ID *(manager, dispatcher, safety)*
+- `PUT /api/drivers/:id` - Update driver *(manager, safety)*
+- `DELETE /api/drivers/:id` - Delete driver *(manager only)*
 
 ### Trips
-- `GET /api/trips` - Get all trips
-- `POST /api/trips` - Create trip
-- `GET /api/trips/:id` - Get trip by ID
-- `PUT /api/trips/:id` - Update trip
-- `POST /api/trips/:id/complete` - Complete trip
+- `GET /api/trips` - Get all trips *(dispatcher, manager)*
+- `POST /api/trips` - Create trip *(dispatcher, manager)*
+- `GET /api/trips/:id` - Get trip by ID *(dispatcher, manager)*
+- `PUT /api/trips/:id` - Update trip *(dispatcher, manager)*
+- `POST /api/trips/:id/complete` - Complete trip *(dispatcher, manager)*
 
 ### Maintenance
-- `GET /api/maintenance` - Get all maintenance records
-- `POST /api/maintenance` - Create maintenance record
-- `POST /api/maintenance/:id/complete` - Complete maintenance
+- `GET /api/maintenance` - Get all maintenance records *(manager, dispatcher, safety)*
+- `POST /api/maintenance` - Create maintenance record *(manager, safety)*
+- `POST /api/maintenance/:id/complete` - Complete maintenance *(manager, safety)*
 
 ### Expenses
-- `GET /api/expenses` - Get all expenses
-- `POST /api/expenses` - Create expense
-- `GET /api/expenses/:id` - Get expense by ID
+- `GET /api/expenses` - Get all expenses *(manager, analyst)*
+- `POST /api/expenses` - Create expense *(dispatcher, manager)*
+- `GET /api/expenses/:id` - Get expense by ID *(manager, analyst)*
 
 ### Analytics
-- `GET /api/analytics/fleet/metrics` - Get fleet KPIs
-- `GET /api/analytics/financial/report` - Get financial report
-- `POST /api/analytics/export` - Export report
+- `GET /api/analytics/fleet/metrics` - Get fleet KPIs *(manager, analyst)*
+- `GET /api/analytics/financial/report` - Get financial report *(manager, analyst)*
+- `POST /api/analytics/export` - Export report *(manager, analyst)*
 
 ## Key Features
 
@@ -210,6 +247,16 @@ npm run lint
 - Standardized error responses
 - Custom error classes
 - Validation error handling
+
+## Documentation
+
+- **[AUTHENTICATION.md](AUTHENTICATION.md)** - Complete authentication guide with API examples
+- **[DATABASE.md](DATABASE.md)** - Database schema, migrations, and seeding guide
+- **[AUTH_TESTING_GUIDE.md](AUTH_TESTING_GUIDE.md)** - Comprehensive testing guide with curl examples
+- **[TASK3_CHECKLIST.md](TASK3_CHECKLIST.md)** - Task 3 implementation tracking
+- **[TASK3_SUMMARY.md](TASK3_SUMMARY.md)** - Task 3 completion summary
+- **[../INTEGRATION_GUIDE.md](../INTEGRATION_GUIDE.md)** - Frontend-Backend integration with Axios
+- **[../FRONTEND_BACKEND_INTEGRATION.md](../FRONTEND_BACKEND_INTEGRATION.md)** - Complete integration documentation
 
 ## Architecture
 

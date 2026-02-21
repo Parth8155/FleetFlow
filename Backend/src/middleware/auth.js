@@ -3,35 +3,40 @@ import { verifyToken } from '../utils/jwt.js'
 
 export const authMiddleware = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1]
-
-    if (!token) {
-      throw new AuthenticationError('No token provided')
+    const authHeader = req.headers.authorization
+    
+    if (!authHeader) {
+      throw new AuthenticationError('Missing authorization header')
     }
 
+    const parts = authHeader.split(' ')
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      throw new AuthenticationError('Invalid authorization header format. Use: Bearer <token>')
+    }
+
+    const token = parts[1]
     const decoded = verifyToken(token)
+    
     req.user = {
+      id: decoded.userId,
       userId: decoded.userId,
       role: decoded.role,
     }
 
     next()
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return res.status(401).json({ error: error.message })
-    }
-    res.status(401).json({ error: 'Invalid token' })
+    next(error)
   }
 }
 
 export const authorize = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' })
+      return next(new AuthenticationError('User not authenticated'))
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden' })
+      return next(new AuthorizationError(`This action requires one of these roles: ${allowedRoles.join(', ')}`))
     }
 
     next()
