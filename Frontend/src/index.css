@@ -17,72 +17,101 @@ body {
   background-color: #f8fafc;
 }
 
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  transition: background-color 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.6);
+}
+
+/* Firefox Scrollbar */
+.custom-scrollbar {
+  scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+  scrollbar-width: thin;
+}
+
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 transform active:scale-95;
   }
 
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700;
+    @apply bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 text-gray-900 hover:bg-gray-300;
+    @apply bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm;
   }
 
   .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700;
+    @apply bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/30;
   }
 
   .btn-success {
-    @apply bg-green-600 text-white hover:bg-green-700;
+    @apply bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30;
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200;
-  }
-
-  .status-badge {
-    @apply inline-block px-3 py-1 rounded-full text-sm font-medium;
-  }
-
-  .status-available {
-    @apply bg-green-100 text-green-800;
-  }
-
-  .status-on-trip {
-    @apply bg-blue-100 text-blue-800;
-  }
-
-  .status-in-shop {
-    @apply bg-yellow-100 text-yellow-800;
-  }
-
-  .status-suspended {
-    @apply bg-red-100 text-red-800;
+    @apply bg-white rounded-2xl shadow-soft border border-gray-100 p-6 transition-all duration-300 hover:shadow-md;
   }
 
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500;
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50 focus:bg-white;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider shadow-sm;
+  }
+
+  .status-available {
+    @apply bg-emerald-100 text-emerald-700 border border-emerald-200;
+  }
+
+  .status-on-trip {
+    @apply bg-indigo-100 text-indigo-700 border border-indigo-200;
+  }
+
+  .status-in-shop {
+    @apply bg-amber-100 text-amber-700 border border-amber-200;
+  }
+
+  .status-suspended {
+    @apply bg-rose-100 text-rose-700 border border-rose-200;
   }
 
   .table-responsive {
-    @apply overflow-x-auto;
+    @apply overflow-x-auto rounded-b-2xl;
   }
 
   .table {
-    @apply w-full border-collapse;
+    @apply w-full border-collapse text-left;
   }
 
   .table th {
-    @apply bg-gray-50 px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200;
+    @apply bg-gray-50/50 px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100;
   }
 
   .table td {
-    @apply px-4 py-3 border-b border-gray-200;
+    @apply px-6 py-4 text-sm text-gray-600 border-b border-gray-50 bg-white;
   }
 
-  .table tr:hover {
-    @apply bg-gray-50;
+  .table tr:last-child td {
+    @apply border-b-0;
+  }
+  
+  .table tr:hover td {
+    @apply bg-gray-50/80 transition-colors duration-150;
   }
 }

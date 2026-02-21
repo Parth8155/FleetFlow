@@ -21,12 +21,13 @@ function AppContent() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-bg-main font-sans overflow-hidden">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 relative">
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-auto">
-          <Routes>
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-6">
+            <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/vehicles" element={<VehicleRegistry />} />
             <Route path="/trips" element={<TripDispatcher />} />
@@ -36,6 +37,7 @@ function AppContent() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          </div>
         </main>
       </div>
     </div>

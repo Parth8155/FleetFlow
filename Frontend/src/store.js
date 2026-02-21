@@ -271,7 +271,8 @@ export const useDashboardStore = create((set) => ({
   filters: {
     vehicleType: null,
     status: null,
-    region: null,
   },
+  searchQuery: '',
   setFilters: (filters) => set({ filters }),
+  setSearchQuery: (query) => set({ searchQuery: query }),
 }))

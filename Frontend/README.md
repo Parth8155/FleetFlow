@@ -6,7 +6,7 @@ A modern, modular UI for the FleetFlow Fleet & Logistics Management System.
 
 📊 **Dashboard** - High-level fleet overview with KPIs
 - Active fleet count, maintenance alerts, utilization rate, pending cargo
-- Real-time filtering by vehicle type, status, and region
+- Real-time filtering by vehicle type and status
 
 🚐 **Vehicle Registry** - Asset management
 - Add, edit, and delete vehicles
@@ -118,7 +118,7 @@ src/
 
 ### 2. Command Center (Dashboard)
 - KPI cards: Active Fleet, Maintenance Alerts, Utilization Rate, Pending Cargo
-- Filter by vehicle type, status, region
+- Filter by vehicle type and status
 - Fleet overview table
 
 ### 3. Vehicle Registry

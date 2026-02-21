@@ -15,7 +15,6 @@ function VehicleRegistry() {
     licensePlate: '',
     maxCapacity: '',
     type: 'van',
-    region: 'North',
   })
 
   useEffect(() => {
@@ -67,7 +66,6 @@ function VehicleRegistry() {
       licensePlate: '',
       maxCapacity: '',
       type: 'van',
-      region: 'North',
     })
     setEditingId(null)
     setSubmitError('')
@@ -90,24 +88,84 @@ function VehicleRegistry() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
         </div>
       )}
       
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Vehicle Registry</h2>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Vehicle Registry</h2>
+          <p className="text-gray-500 mt-1">Manage your fleet inventory</p>
+        </div>
         <button
           onClick={() => {
             resetForm()
             setIsModalOpen(true)
           }}
-          className="btn btn-primary"
+          className="btn btn-primary flex items-center gap-2"
         >
-          + Add Vehicle
+          <span className="text-lg leading-none">+</span> Add Vehicle
         </button>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="table-responsive">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th className="pl-6">Vehicle</th>
+                <th>Model</th>
+                <th>License Plate</th>
+                <th>Capacity</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th className="text-right pr-6">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vehicles.map((vehicle) => (
+                <tr key={vehicle.id} className="group hover:bg-gray-50/50">
+                  <td className="pl-6 py-4 font-medium text-gray-800">{vehicle.name}</td>
+                  <td>{vehicle.model}</td>
+                  <td className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block">{vehicle.licensePlate}</td>
+                  <td>{vehicle.maxCapacity} kg</td>
+                  <td>
+                    <span className="capitalize px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">
+                      {vehicle.type}
+                    </span>
+                  </td>
+                  <td>
+                    <StatusBadge status={vehicle.status} />
+                  </td>
+                  <td className="text-right pr-6 space-x-2">
+                    <button
+                      onClick={() => handleEdit(vehicle)}
+                      className="text-indigo-600 hover:text-indigo-800 font-medium text-sm px-3 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(vehicle.id)}
+                      className="text-red-500 hover:text-red-700 font-medium text-sm px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {vehicles.length === 0 && !loading && (
+                <tr>
+                  <td colSpan="7" className="text-center py-12 text-gray-400">
+                    No vehicles found. Add one to get started.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Modal
@@ -198,22 +256,6 @@ function VehicleRegistry() {
                 <option value="bike">Bike</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Region
-              </label>
-              <select
-                name="region"
-                value={formData.region}
-                onChange={handleInputChange}
-                className="input-field"
-              >
-                <option value="North">North</option>
-                <option value="South">South</option>
-                <option value="East">East</option>
-                <option value="West">West</option>
-              </select>
-            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -250,7 +292,6 @@ function VehicleRegistry() {
                 <th>Capacity</th>
                 <th>Odometer</th>
                 <th>Status</th>
-                <th>Region</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -266,7 +307,6 @@ function VehicleRegistry() {
                   <td>
                     <StatusBadge status={vehicle.status} />
                   </td>
-                  <td>{vehicle.region}</td>
                   <td>
                     <div className="flex gap-2">
                       <button
