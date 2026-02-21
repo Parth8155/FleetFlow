@@ -127,3 +127,17 @@ model Dashboard {
 
   @@map("dashboard_metrics")
 }
+model StatusHistory {
+  id                String   @id @default(cuid())
+  entityType        String   // 'vehicle', 'driver', 'trip'
+  entityId          String
+  previousStatus    String
+  newStatus         String
+  reason            String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("status_history")
+}

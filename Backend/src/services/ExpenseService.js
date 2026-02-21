@@ -57,6 +57,22 @@ export class ExpenseService {
     return ExpenseRepository.getMaintenanceExpenses(vehicleId)
   }
 
+  async getExpensesByDateRange(vehicleId, startDate, endDate) {
+    return ExpenseRepository.getExpensesByDateRange(vehicleId, new Date(startDate), new Date(endDate))
+  }
+
+  async calculateCostPerKilometer(vehicleId) {
+    const vehicle = await VehicleRepository.findById(vehicleId)
+    if (!vehicle) {
+      throw new NotFoundError('Vehicle')
+    }
+
+    if (vehicle.odometer === 0) return 0
+
+    const totalCost = await this.calculateOperationalCost(vehicleId)
+    return (totalCost / vehicle.odometer).toFixed(4)
+  }
+
   async generateFinancialReport(filters = {}) {
     const { vehicleId, startDate, endDate } = filters
 
@@ -76,16 +92,52 @@ export class ExpenseService {
     const maintenanceCost = expenses
       .filter(e => e.type === 'maintenance')
       .reduce((sum, e) => sum + e.amount, 0)
+    const otherCost = expenses
+      .filter(e => e.type === 'other')
+      .reduce((sum, e) => sum + e.amount, 0)
 
     return {
       totalCost,
       fuelCost,
       maintenanceCost,
+      otherCost,
       expenses,
       summary: {
-        fuelPercentage: ((fuelCost / totalCost) * 100).toFixed(2),
-        maintenancePercentage: ((maintenanceCost / totalCost) * 100).toFixed(2),
+        fuelPercentage: totalCost > 0 ? ((fuelCost / totalCost) * 100).toFixed(2) : '0',
+        maintenancePercentage: totalCost > 0 ? ((maintenanceCost / totalCost) * 100).toFixed(2) : '0',
+        otherPercentage: totalCost > 0 ? ((otherCost / totalCost) * 100).toFixed(2) : '0',
+        transactionCount: expenses.length,
+        dateRange: {
+          from: startDate || 'All-time',
+          to: endDate || 'Today',
+        },
       },
+    }
+  }
+
+  async getFleetFinancialMetrics() {
+    const allExpenses = await ExpenseRepository.findAll(10000, 0)
+    
+    const totalCost = allExpenses.reduce((sum, e) => sum + e.amount, 0)
+    const fuelCost = allExpenses
+      .filter(e => e.type === 'fuel')
+      .reduce((sum, e) => sum + e.amount, 0)
+    const maintenanceCost = allExpenses
+      .filter(e => e.type === 'maintenance')
+      .reduce((sum, e) => sum + e.amount, 0)
+
+    const vehicles = await VehicleRepository.findAll(1000, 0)
+    const costPerVehicle = vehicles.length > 0 ? (totalCost / vehicles.length).toFixed(2) : 0
+
+    return {
+      totalFleetCost: totalCost,
+      fuelCost,
+      maintenanceCost,
+      costPerVehicle,
+      averageFuelCost: vehicles.length > 0 ? (fuelCost / vehicles.length).toFixed(2) : 0,
+      averageMaintenanceCost: vehicles.length > 0 ? (maintenanceCost / vehicles.length).toFixed(2) : 0,
+      vehicleCount: vehicles.length,
+      transactionCount: allExpenses.length,
     }
   }
 

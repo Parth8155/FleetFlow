@@ -13,6 +13,7 @@ import tripRoutes from './routes/tripRoutes.js'
 import maintenanceRoutes from './routes/maintenanceRoutes.js'
 import expenseRoutes from './routes/expenseRoutes.js'
 import analyticsRoutes from './routes/analyticsRoutes.js'
+import statusRoutes from './routes/statusRoutes.js'
 
 const app = express()
 
@@ -35,6 +36,7 @@ app.use('/api/trips', tripRoutes)
 app.use('/api/maintenance', maintenanceRoutes)
 app.use('/api/expenses', expenseRoutes)
 app.use('/api/analytics', analyticsRoutes)
+app.use('/api/status', statusRoutes)
 
 // 404 Handler
 app.use((req, res) => {

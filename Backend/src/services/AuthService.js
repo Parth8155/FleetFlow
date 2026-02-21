@@ -27,7 +27,7 @@ export class AuthService {
       throw new AuthenticationError('Invalid email or password')
     }
 
-    const token = this.generateAuthToken(user.id, user.role)
+    const token = await this.generateAuthToken(user.id, user.role)
     return { user, token }
   }
 
@@ -43,7 +43,7 @@ export class AuthService {
       password: hashedPassword,
     })
 
-    const token = this.generateAuthToken(newUser.id, newUser.role)
+    const token = await this.generateAuthToken(newUser.id, newUser.role)
     return { user: newUser, token }
   }
 
