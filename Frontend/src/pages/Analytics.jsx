@@ -155,17 +155,20 @@ function Analytics() {
     }
   }
 
-  const avgFuelLiters =
-    expenses
+  const totalFuelLiters =
+    (expenses
       .filter((e) => e.type === 'fuel')
-      .reduce((sum, e) => sum + (e.units || 0), 0) || 0
+      .reduce((sum, e) => sum + (e.units || 0), 0) || 0) +
+    completedTrips.reduce((sum, t) => sum + (t.fuelConsumed || 0), 0)
 
   const totalDistance = completedTrips.reduce(
     (sum, t) => sum + ((t.endOdometer || 0) - (t.startOdometer || 0)),
     0
   )
 
-  const fuelEfficiency = totalDistance > 0 ? (totalDistance / avgFuelLiters).toFixed(2) : 0
+  const fuelEfficiency = (totalDistance > 0 && totalFuelLiters > 0) 
+    ? (totalDistance / totalFuelLiters).toFixed(2) 
+    : 0
 
   const costPerKM = totalDistance > 0 ? (totalCost / totalDistance).toFixed(2) : 0
 
@@ -439,7 +442,7 @@ function Analytics() {
             {fuelEfficiency} km/L
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {avgFuelLiters}L consumed
+            {totalFuelLiters}L consumed
           </p>
         </div>
 
