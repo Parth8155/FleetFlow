@@ -187,6 +187,12 @@ export const useFleetStore = create((set) => ({
     try {
       const newTrip = await api.trips.create(trip)
       set((state) => ({ trips: [...state.trips, newTrip] }))
+      // Re-fetch vehicles and drivers to reflect status changes (on-trip)
+      const [vData, dData] = await Promise.all([
+        api.vehicles.getAll(),
+        api.drivers.getAll()
+      ])
+      set({ vehicles: vData, drivers: dData })
       return newTrip
     } catch (error) {
       set({ error: error.message })
@@ -196,10 +202,16 @@ export const useFleetStore = create((set) => ({
 
   completeTrip: async (tripId, endOdometer) => {
     try {
-      const completed = await api.trips.complete(tripId)
+      const completed = await api.trips.complete(tripId, endOdometer)
       set((state) => ({
         trips: state.trips.map((t) => (t.id === tripId ? completed : t)),
       }))
+      // Re-fetch to reflect "available" status and updated odometer
+      const [vData, dData] = await Promise.all([
+        api.vehicles.getAll(),
+        api.drivers.getAll()
+      ])
+      set({ vehicles: vData, drivers: dData })
       return completed
     } catch (error) {
       set({ error: error.message })
@@ -244,6 +256,9 @@ export const useFleetStore = create((set) => ({
     try {
       const newLog = await api.maintenance.create(log)
       set((state) => ({ maintenanceLogs: [...state.maintenanceLogs, newLog] }))
+      // Re-fetch vehicles to reflect "in-shop" status
+      const vData = await api.vehicles.getAll()
+      set({ vehicles: vData })
       return newLog
     } catch (error) {
       set({ error: error.message })
@@ -259,6 +274,9 @@ export const useFleetStore = create((set) => ({
           l.id === logId ? completed : l
         ),
       }))
+      // Re-fetch to reflect "available" status
+      const vData = await api.vehicles.getAll()
+      set({ vehicles: vData })
       return completed
     } catch (error) {
       set({ error: error.message })

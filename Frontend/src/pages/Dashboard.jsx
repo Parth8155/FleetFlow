@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useFleetStore, useDashboardStore } from '../store'
+import { useFleetStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
+import FilterBar from '../components/FilterBar'
 import { 
   TruckIcon, 
   WrenchScrewdriverIcon, 
@@ -10,22 +11,35 @@ import {
   CheckBadgeIcon,
   FunnelIcon,
   ArrowsUpDownIcon,
-  VariableIcon
+  VariableIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline'
 
 function Dashboard() {
-  const { vehicles, trips, drivers, fetchVehicles, fetchTrips, fetchDrivers, loading, error } = useFleetStore()
-  const { filters, setFilters, searchQuery } = useDashboardStore()
+  const { 
+    vehicles, 
+    trips, 
+    drivers, 
+    expenses,
+    fetchVehicles, 
+    fetchTrips, 
+    fetchDrivers, 
+    fetchExpenses,
+    loading, 
+    error 
+  } = useFleetStore()
   
   // Group, Filter, Sort state
   const [groupBy, setGroupBy] = useState('none')
-  const [sortBy, setSortBy] = useState('name')
-  const [sortOrder, setSortOrder] = useState('asc')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState({ vehicleType: '', status: '' })
+  const [sortConfig, setSortConfig] = useState({ key: 'model', direction: 'asc' })
 
   useEffect(() => {
     fetchVehicles()
     fetchTrips()
     fetchDrivers()
+    fetchExpenses()
   }, [])
 
   const getDriverName = (vehicleId) => {
@@ -45,6 +59,9 @@ function Dashboard() {
     totalVehicles: vehicles.length,
     totalDrivers: drivers.length,
     completedTrips: trips.filter((t) => t.status === 'completed').length,
+    totalFuelExpense: expenses
+      .filter(e => e.type === 'fuel')
+      .reduce((acc, e) => acc + (e.amount || 0), 0)
   }
 
   // Apply filters
@@ -54,7 +71,7 @@ function Dashboard() {
       const query = searchQuery.toLowerCase()
       const driverName = getDriverName(v.id).toLowerCase()
       const matchesSearch = 
-        v.name?.toLowerCase().includes(query) || 
+        v.model?.toLowerCase().includes(query) || 
         v.licensePlate?.toLowerCase().includes(query) ||
         v.type?.toLowerCase().includes(query) ||
         driverName.includes(query)
@@ -71,9 +88,9 @@ function Dashboard() {
   const sortedVehicles = [...filteredVehicles].sort((a, b) => {
     let comparison = 0
     
-    switch(sortBy) {
-      case 'name':
-        comparison = a.name.localeCompare(b.name)
+    switch(sortConfig.key) {
+      case 'model':
+        comparison = a.model.localeCompare(b.model)
         break
       case 'capacity':
         comparison = a.maxCapacity - b.maxCapacity
@@ -88,8 +105,26 @@ function Dashboard() {
         comparison = 0
     }
     
-    return sortOrder === 'asc' ? comparison : -comparison
+    return sortConfig.direction === 'asc' ? comparison : -comparison
   })
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSortChange = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
+  const resetFilters = () => {
+    setSearchQuery('')
+    setFilters({ vehicleType: '', status: '' })
+    setSortConfig({ key: 'model', direction: 'asc' })
+    setGroupBy('none')
+  }
 
   // Apply grouping
   const getGroupedData = () => {
@@ -181,120 +216,65 @@ function Dashboard() {
           subtext="Fleet rate"
         />
         <StatCard 
-          title="Pending Cargo" 
-          value={stats.pendingCargo}
-          icon={CubeIcon}
-          colorClass="text-purple-600"
-          bgClass="bg-purple-50"
-          subtext="Drafts"
+          title="Fuel Expense" 
+          value={`₹${stats.totalFuelExpense.toLocaleString()}`}
+          icon={BanknotesIcon}
+          colorClass="text-rose-600"
+          bgClass="bg-rose-50"
+          subtext="Actual total"
         />
       </div>
 
       {/* Fleet Management Controls */}
-      <div className="card p-5">
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* 1. Filter Section */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold text-gray-800 flex items-center gap-2 uppercase tracking-wider">
-              <FunnelIcon className="w-3.5 h-3.5 text-indigo-600" />
-              Filter
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="relative">
-                <select
-                  value={filters.vehicleType || ''}
-                  onChange={(e) => setFilters({ ...filters, vehicleType: e.target.value || null })}
-                  className="input-field appearance-none py-1.5 px-3 text-xs"
-                >
-                  <option value="">All Types</option>
-                  <option value="truck">Truck</option>
-                  <option value="van">Van</option>
-                  <option value="bike">Bike</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                </div>
-              </div>
-              <div className="relative">
-                <select
-                  value={filters.status || ''}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value || null })}
-                  className="input-field appearance-none py-1.5 px-3 text-xs"
-                >
-                  <option value="">All Status</option>
-                  <option value="available">Available</option>
-                  <option value="on-trip">On Trip</option>
-                  <option value="in-shop">In Shop</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Group Selection */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold text-gray-800 flex items-center gap-2 uppercase tracking-wider">
-              <VariableIcon className="w-3.5 h-3.5 text-indigo-600" />
-              Group
-            </h3>
-            <div className="relative">
-              <select
-                value={groupBy}
-                onChange={(e) => setGroupBy(e.target.value)}
-                className="input-field appearance-none py-1.5 px-3 text-xs"
-              >
-                <option value="none">No Grouping</option>
-                <option value="status">By Status</option>
-                <option value="type">By Type</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
-                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Sort Selection */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold text-gray-800 flex items-center gap-2 uppercase tracking-wider">
-              <ArrowsUpDownIcon className="w-3.5 h-3.5 text-indigo-600" />
-              Sort
-            </h3>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="input-field appearance-none py-1.5 px-3 text-xs w-full"
-                >
-                  <option value="name">Name</option>
-                  <option value="capacity">Capacity</option>
-                  <option value="type">Type</option>
-                  <option value="status">Status</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                </div>
-              </div>
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors flex items-center gap-1.5 min-w-[70px]"
-              >
-                {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-              </button>
-              <button 
-                onClick={() => {
-                  setFilters({})
-                  setGroupBy('none')
-                  setSortBy('name')
-                  setSortOrder('asc')
-                  useDashboardStore.getState().setSearchQuery('')
-                }}
-                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-xs font-bold transition-all ml-auto"
-              >
-                Reset
-              </button>
+      <div className="flex flex-col md:flex-row gap-4 items-end bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mb-6">
+        <div className="flex-1 w-full">
+          <FilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            filterOptions={[
+              { key: 'vehicleType', label: 'Type', options: [
+                { value: 'truck', label: 'Truck' },
+                { value: 'van', label: 'Van' },
+                { value: 'bike', label: 'Bike' }
+              ]},
+              { key: 'status', label: 'Status', options: [
+                { value: 'available', label: 'Available' },
+                { value: 'on-trip', label: 'On Trip' },
+                { value: 'in-shop', label: 'In Shop' }
+              ]}
+            ]}
+            sortConfig={sortConfig}
+            onSortChange={handleSortChange}
+            sortOptions={[
+              { value: 'model', label: 'Model' },
+              { value: 'capacity', label: 'Capacity' },
+              { value: 'type', label: 'Type' },
+              { value: 'status', label: 'Status' }
+            ]}
+            onReset={resetFilters}
+          />
+        </div>
+        
+        {/* Group Selection - Kept as extra control for Dashboard */}
+        <div className="w-full md:w-48 pb-6">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 mb-1.5 px-1">
+            <VariableIcon className="w-3.5 h-3.5 text-indigo-600" />
+            Group By
+          </h3>
+          <div className="relative">
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value)}
+              className="input-field appearance-none py-1.5 px-3 text-sm w-full"
+            >
+              <option value="none">No Grouping</option>
+              <option value="status">By Status</option>
+              <option value="type">By Type</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
             </div>
           </div>
         </div>
@@ -319,7 +299,7 @@ function Dashboard() {
             <table className="table w-full">
               <thead>
                 <tr>
-                  <th className="pl-6 py-3 text-xs">Vehicle Name</th>
+                  <th className="pl-6 py-3 text-xs">Model</th>
                   <th className="py-3 text-xs">Type</th>
                   <th className="py-3 text-xs">License Plate</th>
                   <th className="py-3 text-xs">Status</th>
@@ -336,9 +316,10 @@ function Dashboard() {
                           <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
                             <TruckIcon className="w-4 h-4" />
                           </div>
-                          <span className="font-semibold text-gray-700">{vehicle.name}</span>
+                          <span className="font-semibold text-gray-700">{vehicle.model}</span>
                         </div>
                       </td>
+
                       <td className="py-3 text-xs italic text-gray-500 uppercase">
                         {vehicle.type}
                       </td>

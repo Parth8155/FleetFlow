@@ -1,9 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useFleetStore } from '../store'
 import Modal from '../components/Modal'
+import FilterBar from '../components/FilterBar'
 
 function ExpensesAndFuel() {
-  const { vehicles, expenses, fetchVehicles, fetchExpenses, addExpense, loading, error } = useFleetStore()
+  const { 
+    vehicles, 
+    expenses, 
+    maintenanceLogs,
+    fetchVehicles, 
+    fetchExpenses, 
+    fetchMaintenanceLogs,
+    fetchTrips,
+    trips,
+    addExpense, 
+    loading, 
+    error 
+  } = useFleetStore()
+  
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [expenseType, setExpenseType] = useState('fuel')
   const [submitError, setSubmitError] = useState('')
@@ -11,20 +25,88 @@ function ExpensesAndFuel() {
   const [formData, setFormData] = useState({
     vehicleId: '',
     amount: '',
-    unit: '',
+    units: '',
     description: '',
   })
+
+  // Filtering & Sorting State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState({ type: '' })
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' })
 
   useEffect(() => {
     fetchVehicles()
     fetchExpenses()
+    fetchMaintenanceLogs()
+    fetchTrips()
   }, [])
+
+  // Combine fixed expenses and completed maintenance records for a unified view
+  const combinedMaintenance = [
+    ...expenses.filter(e => e.type === 'maintenance'),
+    ...maintenanceLogs
+      .filter(m => m.status === 'completed')
+      .map(m => ({
+        id: m.id,
+        vehicleId: m.vehicleId,
+        amount: m.cost,
+        description: m.description,
+        date: m.completedDate || m.updatedAt,
+        type: 'maintenance'
+      }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date))
+
+  const filteredExpenses = expenses
+    .filter((exp) => {
+      const vehicle = vehicles.find((v) => v.id === exp.vehicleId)
+      const vehicleModel = (vehicle?.model || '').toLowerCase()
+      const description = (exp.description || '').toLowerCase()
+      const search = searchQuery.toLowerCase()
+      
+      const matchesSearch = 
+        vehicleModel.includes(search) || 
+        description.includes(search)
+      
+      const matchesType = filters.type ? exp.type === filters.type : true
+      
+      return matchesSearch && matchesType
+    })
+    .sort((a, b) => {
+      const aValue = a[sortConfig.key] || ''
+      const bValue = b[sortConfig.key] || ''
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1
+      }
+      return 0
+    })
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSortChange = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
+  const resetFilters = () => {
+    setSearchQuery('')
+    setFilters({ type: '' })
+    setSortConfig({ key: 'date', direction: 'desc' })
+  }
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'amount' || name === 'unit' ? parseFloat(value) : value,
+      [name]: name === 'amount' || name === 'units' ? parseFloat(value) : value,
     }))
   }
 
@@ -40,10 +122,10 @@ function ExpensesAndFuel() {
     setIsSubmitting(true)
     try {
       await addExpense({
-        vehicleId: parseInt(formData.vehicleId),
+        vehicleId: formData.vehicleId,
         type: expenseType,
         amount: parseFloat(formData.amount),
-        unit: formData.unit ? parseFloat(formData.unit) : undefined,
+        units: formData.units ? parseFloat(formData.units) : undefined,
         description: formData.description,
       })
       resetForm()
@@ -59,7 +141,7 @@ function ExpensesAndFuel() {
     setFormData({
       vehicleId: '',
       amount: '',
-      unit: '',
+      units: '',
       description: '',
     })
     setSubmitError('')
@@ -72,23 +154,30 @@ function ExpensesAndFuel() {
 
   const totalFuelLiters = expenses
     .filter((e) => e.type === 'fuel')
-    .reduce((sum, e) => sum + (e.unit || 0), 0)
+    .reduce((sum, e) => sum + (e.units || 0), 0)
+
+  const completedTrips = trips.filter(t => t.status === 'completed')
+  const totalDistance = completedTrips.reduce(
+    (sum, t) => sum + ((t.endOdometer || 0) - (t.startOdometer || 0)),
+    0
+  )
 
   const avgFuelEfficiency =
-    totalFuelLiters > 0
-      ? (
-        vehicles.reduce(
-          (sum, v) => sum + (v.odometer || 0),
-          0
-        ) / totalFuelLiters
-      ).toFixed(2)
+    totalFuelLiters > 0 && totalDistance > 0
+      ? (totalDistance / totalFuelLiters).toFixed(2)
       : 0
 
-  const totalMaintenanceCost = expenses
-    .filter((e) => e.type === 'maintenance')
-    .reduce((sum, e) => sum + e.amount, 0)
+  const totalMaintenanceCost = combinedMaintenance.reduce((sum, e) => sum + e.amount, 0)
 
   const totalOperationalCost = totalFuelCost + totalMaintenanceCost
+
+  if (loading && vehicles.length === 0) {
+    return (
+      <div className="p-10 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -125,36 +214,32 @@ function ExpensesAndFuel() {
           <p className="text-xs text-gray-500 mt-1">
             {expenses
               .filter((e) => e.type === 'fuel')
-              .reduce((sum, e) => sum + (e.unit || 0), 0)}L total
+              .reduce((sum, e) => sum + (e.units || 0), 0)}L total
           </p>
         </div>
 
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Maintenance Cost</p>
           <p className="text-3xl font-bold text-orange-600 mt-2">
-            ₹{expenses
-              .filter((e) => e.type === 'maintenance')
-              .reduce((sum, e) => sum + e.amount, 0)}
+            ₹{totalMaintenanceCost.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {expenses.filter((e) => e.type === 'maintenance').length} services
+            {combinedMaintenance.length} services & logs
           </p>
         </div>
 
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Fuel Efficiency</p>
           <p className="text-3xl font-bold text-green-600 mt-2">
-            {vehicles.length > 0 && expenses.filter(e => e.type === 'fuel').length > 0
-              ? (vehicles.reduce((sum, v) => sum + (v.odometer || 0), 0) /
-                  expenses.filter((e) => e.type === 'fuel').reduce((sum, e) => sum + (e.unit || 0), 0)).toFixed(2)
-              : '0'} km/L
+            {avgFuelEfficiency} km/L
           </p>
+          <p className="text-xs text-gray-500 mt-1">Based on {totalDistance} km</p>
         </div>
 
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Total Operational Cost</p>
           <p className="text-3xl font-bold text-red-600 mt-2">
-            ₹{expenses.reduce((sum, e) => sum + e.amount, 0)}
+            ₹{totalOperationalCost.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">Fuel + Maintenance</p>
         </div>
@@ -209,7 +294,7 @@ function ExpensesAndFuel() {
               <option value="">Choose vehicle...</option>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name} - {v.licensePlate}
+                  {v.model} - {v.licensePlate}
                 </option>
               ))}
             </select>
@@ -222,8 +307,8 @@ function ExpensesAndFuel() {
               </label>
               <input
                 type="number"
-                name="unit"
-                value={formData.unit}
+                name="units"
+                value={formData.units}
                 onChange={handleInputChange}
                 placeholder="45"
                 step="0.01"
@@ -283,6 +368,28 @@ function ExpensesAndFuel() {
         </form>
       </Modal>
 
+      
+      <FilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        filterOptions={[
+          { key: 'type', label: 'Type', options: [
+            { value: 'fuel', label: 'Fuel' },
+            { value: 'maintenance', label: 'Maintenance' },
+            { value: 'other', label: 'Other' }
+          ]}
+        ]}
+        sortConfig={sortConfig}
+        onSortChange={handleSortChange}
+        sortOptions={[
+          { value: 'date', label: 'Date' },
+          { value: 'amount', label: 'Amount' }
+        ]}
+        onReset={resetFilters}
+      />
+
       {/* Expenses Table */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Fuel Log */}
@@ -294,28 +401,33 @@ function ExpensesAndFuel() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Vehicle</th>
+                  <th>Model</th>
                   <th>Liters</th>
                   <th>Cost</th>
                   <th>Date</th>
                 </tr>
               </thead>
               <tbody>
-                {expenses
+                {filteredExpenses
                   .filter((e) => e.type === 'fuel')
                   .map((exp) => (
                     <tr key={exp.id}>
                       <td className="font-medium">
                         {
                           vehicles.find((v) => v.id === exp.vehicleId)
-                            ?.name
+                            ?.model
                         }
                       </td>
-                      <td>{exp.unit}L</td>
-                      <td className="text-green-600 font-medium">₹{exp.amount}</td>
-                      <td className="text-sm">{exp.date}</td>
+                      <td>{exp.units}L</td>
+                      <td className="text-green-600 font-medium">₹{exp.amount?.toLocaleString()}</td>
+                      <td className="text-sm">{new Date(exp.date).toLocaleDateString()}</td>
                     </tr>
                   ))}
+                {filteredExpenses.filter((e) => e.type === 'fuel').length === 0 && (
+                   <tr>
+                     <td colSpan={4} className="text-center py-6 text-gray-400">No fuel logs found.</td>
+                   </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -332,30 +444,33 @@ function ExpensesAndFuel() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Vehicle</th>
+                  <th>Model</th>
                   <th>Details</th>
                   <th>Cost</th>
                   <th>Date</th>
                 </tr>
               </thead>
               <tbody>
-                {expenses
-                  .filter((e) => e.type === 'maintenance')
-                  .map((exp) => (
+                {combinedMaintenance.map((exp) => (
                     <tr key={exp.id}>
                       <td className="font-medium">
                         {
                           vehicles.find((v) => v.id === exp.vehicleId)
-                            ?.name
+                            ?.model
                         }
                       </td>
                       <td className="text-sm">{exp.description}</td>
                       <td className="text-orange-600 font-medium">
-                        ₹{exp.amount}
+                        ₹{exp.amount.toLocaleString()}
                       </td>
-                      <td className="text-sm">{exp.date}</td>
+                      <td className="text-sm">{new Date(exp.date).toLocaleDateString()}</td>
                     </tr>
                   ))}
+                {combinedMaintenance.length === 0 && (
+                   <tr>
+                     <td colSpan={4} className="text-center py-6 text-gray-400">No maintenance logs found.</td>
+                   </tr>
+                )}
               </tbody>
             </table>
           </div>

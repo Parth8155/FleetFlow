@@ -1,7 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuthStore, useDashboardStore } from '../store'
+import { useAuthStore } from '../store'
 import { 
-  MagnifyingGlassIcon, 
   BellIcon, 
   ArrowRightOnRectangleIcon,
   Bars3Icon 
@@ -9,7 +8,6 @@ import {
 
 function Navbar({ onMenuClick }) {
   const { user, logout } = useAuthStore()
-  const { searchQuery, setSearchQuery } = useDashboardStore()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -47,20 +45,7 @@ function Navbar({ onMenuClick }) {
           </h1>
         </div>
 
-        <div className="flex-1 max-w-lg mx-6 hidden md:block">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all"
-              placeholder="Search fleet, drivers, or trips..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
+        <div className="flex-1"></div>
 
         <div className="flex items-center gap-4">
           <button className="relative p-2 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-indigo-600 transition-all">

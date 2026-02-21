@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
-import { useFleetStore } from '../store'
+import { useFleetStore, useAuthStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
+import FilterBar from '../components/FilterBar'
 
 function DriverProfiles() {
   const { drivers, fetchDrivers, addDriver, updateDriver, loading, error } = useFleetStore()
+  const { user } = useAuthStore()
+  const canEdit = ['manager', 'safety'].includes(user?.role)
+  
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [submitError, setSubmitError] = useState('')
@@ -17,9 +21,56 @@ function DriverProfiles() {
     safetyScore: 100,
   })
 
+  // Filtering & Sorting State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState({ status: '', licenseCategory: '' })
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' })
+
   useEffect(() => {
     fetchDrivers()
   }, [])
+
+  const filteredDrivers = drivers
+    .filter((driver) => {
+      const matchesSearch =
+        (driver.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (driver.licenseNumber || '').toLowerCase().includes(searchQuery.toLowerCase())
+      
+      const matchesStatus = filters.status ? driver.status === filters.status : true
+      const matchesCategory = filters.licenseCategory ? driver.licenseCategory === filters.licenseCategory : true
+
+      return matchesSearch && matchesStatus && matchesCategory
+    })
+    .sort((a, b) => {
+      const aValue = a[sortConfig.key] || ''
+      const bValue = b[sortConfig.key] || ''
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1
+      }
+      return 0
+    })
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSortChange = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
+  const resetFilters = () => {
+    setSearchQuery('')
+    setFilters({ status: '', licenseCategory: '' })
+    setSortConfig({ key: 'name', direction: 'asc' })
+  }
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -61,10 +112,20 @@ function DriverProfiles() {
 
     setIsSubmitting(true)
     try {
+      // Prepare payload
+      const payload = {
+        name: formData.name,
+        licenseNumber: formData.licenseNumber,
+        licenseExpiry: new Date(formData.licenseExpiry).toISOString(),
+        licenseCategory: formData.licenseCategory,
+        // Only include safetyScore if provided (it handles 0 correctly)
+        safetyScore: formData.safetyScore !== '' ? Number(formData.safetyScore) : undefined
+      }
+
       if (editingId) {
-        await updateDriver(editingId, formData)
+        await updateDriver(editingId, payload)
       } else {
-        await addDriver(formData)
+        await addDriver(payload)
       }
       resetForm()
       setIsModalOpen(false)
@@ -88,7 +149,12 @@ function DriverProfiles() {
   }
 
   const handleEdit = (driver) => {
-    setFormData(driver)
+    // Format date for input field (YYYY-MM-DD)
+    const formattedDriver = {
+      ...driver,
+      licenseExpiry: driver.licenseExpiry ? new Date(driver.licenseExpiry).toISOString().split('T')[0] : ''
+    }
+    setFormData(formattedDriver)
     setEditingId(driver.id)
     setIsModalOpen(true)
   }
@@ -112,15 +178,17 @@ function DriverProfiles() {
       
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">Driver Profiles</h2>
-        <button
-          onClick={() => {
-            resetForm()
-            setIsModalOpen(true)
-          }}
-          className="btn btn-primary"
-        >
-          + Add Driver
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => {
+              resetForm()
+              setIsModalOpen(true)
+            }}
+            className="btn btn-primary"
+          >
+            + Add Driver
+          </button>
+        )}
       </div>
 
       {/* License Alerts */}
@@ -272,6 +340,33 @@ function DriverProfiles() {
         </form>
       </Modal>
 
+      <FilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        filterOptions={[
+          { key: 'status', label: 'Status', options: [
+            { value: 'on-duty', label: 'On Duty' },
+            { value: 'off-duty', label: 'Off Duty' }
+          ]},
+          { key: 'licenseCategory', label: 'Category', options: [
+            { value: 'B', label: 'B' },
+            { value: 'C', label: 'C' },
+            { value: 'D', label: 'D' },
+            { value: 'CE', label: 'CE' }
+          ]}
+        ]}
+        sortConfig={sortConfig}
+        onSortChange={handleSortChange}
+        sortOptions={[
+          { value: 'name', label: 'Name' },
+          { value: 'safetyScore', label: 'Safety Score' },
+          { value: 'licenseExpiry', label: 'License Expiry' }
+        ]}
+        onReset={resetFilters}
+      />
+
       {/* Drivers Table */}
       <div className="card overflow-hidden">
         <div className="p-6 border-b border-gray-200">
@@ -290,11 +385,11 @@ function DriverProfiles() {
                 <th>Safety Score</th>
                 <th>Trips Completed</th>
                 <th>Status</th>
-                <th>Actions</th>
+                {canEdit && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {drivers.map((driver) => {
+              {filteredDrivers.map((driver) => {
                 const expired = isLicenseExpired(driver.licenseExpiry)
                 const rowClass = expired ? 'bg-red-50' : ''
 
@@ -305,7 +400,7 @@ function DriverProfiles() {
                     <td className="text-sm">{driver.licenseCategory}</td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">{driver.licenseExpiry}</span>
+                        <span className="text-sm">{new Date(driver.licenseExpiry).toLocaleDateString()}</span>
                         {expired && (
                           <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
                             EXPIRED
@@ -334,21 +429,30 @@ function DriverProfiles() {
                         </span>
                       </div>
                     </td>
-                    <td className="text-gray-600">{driver.tripsCompleted}</td>
+                    <td className="text-gray-600">{driver.tripsCompleted || 0}</td>
                     <td>
                       <StatusBadge status={driver.status} />
                     </td>
-                    <td>
-                      <button
-                        onClick={() => handleEdit(driver)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        Edit
-                      </button>
-                    </td>
+                    {canEdit && (
+                      <td>
+                        <button
+                          onClick={() => handleEdit(driver)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 )
               })}
+              {filteredDrivers.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={canEdit ? 8 : 7} className="text-center py-12 text-gray-400">
+                    No drivers found matching your criteria.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

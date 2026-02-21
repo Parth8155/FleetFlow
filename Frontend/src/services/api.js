@@ -192,8 +192,8 @@ class APIClient {
       return await this.request(`/trips/${id}`, 'PUT', tripData)
     },
 
-    complete: async (id) => {
-      return await this.request(`/trips/${id}/complete`, 'POST')
+    complete: async (id, endOdometer) => {
+      return await this.request(`/trips/${id}/complete`, 'POST', { endOdometer })
     },
   }
 

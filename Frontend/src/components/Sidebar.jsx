@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useAuthStore } from '../store'
 import { 
   ChartBarIcon, 
   TruckIcon, 
@@ -11,16 +12,56 @@ import {
 
 function Sidebar({ open, setOpen }) {
   const location = useLocation()
+  const { user } = useAuthStore()
+  const role = user?.role || 'dispatcher' // Default to dispatcher if role not found
 
-  const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: ChartBarIcon },
-    { path: '/vehicles', label: 'Vehicle Registry', icon: TruckIcon },
-    { path: '/trips', label: 'Trip Dispatcher', icon: MapIcon },
-    { path: '/maintenance', label: 'Maintenance', icon: WrenchScrewdriverIcon },
-    { path: '/expenses', label: 'Expenses & Fuel', icon: CurrencyDollarIcon },
-    { path: '/drivers', label: 'Driver Profiles', icon: UserGroupIcon },
-    { path: '/analytics', label: 'Analytics', icon: PresentationChartLineIcon },
+  // Define menu items with allowed roles
+  const allMenuItems = [
+    { 
+      path: '/dashboard', 
+      label: 'Dashboard', 
+      icon: ChartBarIcon, 
+      roles: ['manager', 'dispatcher', 'safety', 'analyst'] 
+    },
+    { 
+      path: '/vehicles', 
+      label: 'Vehicle Registry', 
+      icon: TruckIcon, 
+      roles: ['manager', 'dispatcher', 'safety'] 
+    },
+    { 
+      path: '/trips', 
+      label: 'Trip Dispatcher', 
+      icon: MapIcon, 
+      roles: ['manager', 'dispatcher'] 
+    },
+    { 
+      path: '/maintenance', 
+      label: 'Maintenance', 
+      icon: WrenchScrewdriverIcon, 
+      roles: ['manager', 'safety', 'analyst'] 
+    },
+    { 
+      path: '/expenses', 
+      label: 'Expenses & Fuel', 
+      icon: CurrencyDollarIcon, 
+      roles: ['manager', 'analyst'] 
+    },
+    { 
+      path: '/drivers', 
+      label: 'Driver Profiles', 
+      icon: UserGroupIcon, 
+      roles: ['manager', 'dispatcher', 'safety'] 
+    },
+    { 
+      path: '/analytics', 
+      label: 'Analytics', 
+      icon: PresentationChartLineIcon, 
+      roles: ['manager', 'analyst'] 
+    },
   ]
+
+  const menuItems = allMenuItems.filter(item => item.roles.includes(role))
 
   return (
     <>
@@ -76,11 +117,11 @@ function Sidebar({ open, setOpen }) {
         <div className="absolute bottom-8 left-6 right-6 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-xs font-bold ring-2 ring-sidebar">
-              JD
+              {user?.name?.charAt(0) || 'U'}
             </div>
             <div>
-              <p className="text-sm font-medium text-white">John Doe</p>
-              <p className="text-xs text-gray-400">Manager</p>
+              <p className="text-sm font-medium text-white">{user?.name || 'User'}</p>
+              <p className="text-xs text-gray-400 capitalize">{role}</p>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useFleetStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
+import FilterBar from '../components/FilterBar'
 
 function TripDispatcher() {
   const { vehicles, drivers, trips, fetchVehicles, fetchDrivers, fetchTrips, addTrip, completeTrip, loading, error } = useFleetStore()
@@ -15,15 +16,75 @@ function TripDispatcher() {
     vehicleId: '',
     driverId: '',
     cargoWeight: '',
+    estimatedFuelCost: '',
     startPoint: '',
     endPoint: '',
   })
+
+  // Filtering & Sorting State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState({ status: '' })
+  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'desc' })
 
   useEffect(() => {
     fetchVehicles()
     fetchDrivers()
     fetchTrips()
   }, [])
+
+  const filteredTrips = trips
+    .filter((trip) => {
+      const vehicle = vehicles.find((v) => String(v.id) === String(trip.vehicleId))
+      const driver = drivers.find((d) => String(d.id) === String(trip.driverId))
+      
+      const vehicleModel = (vehicle?.model || '').toLowerCase()
+      const driverName = (driver?.name || '').toLowerCase()
+      const startPoint = (trip.startPoint || '').toLowerCase()
+      const endPoint = (trip.endPoint || '').toLowerCase()
+      const idStr = trip.id.toString()
+      const search = searchQuery.toLowerCase()
+
+      const matchesSearch =
+        vehicleModel.includes(search) ||
+        driverName.includes(search) ||
+        startPoint.includes(search) ||
+        endPoint.includes(search) ||
+        idStr.includes(search)
+      
+      const matchesStatus = filters.status ? trip.status === filters.status : true
+
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      const aValue = a[sortConfig.key] || ''
+      const bValue = b[sortConfig.key] || ''
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1
+      }
+      return 0
+    })
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSortChange = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
+  const resetFilters = () => {
+    setSearchQuery('')
+    setFilters({ status: '' })
+    setSortConfig({ key: 'id', direction: 'desc' })
+  }
+
 
   const availableVehicles = vehicles.filter((v) => v.status === 'available')
   const availableDrivers = drivers.filter((d) => d.status === 'on-duty')
@@ -32,8 +93,7 @@ function TripDispatcher() {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        name === 'cargoWeight' ? parseFloat(value) : parseInt(value) || value,
+      [name]: (name === 'cargoWeight' || name === 'estimatedFuelCost') ? parseFloat(value) : value,
     }))
   }
 
@@ -45,6 +105,7 @@ function TripDispatcher() {
       !formData.vehicleId ||
       !formData.driverId ||
       !formData.cargoWeight ||
+      !formData.estimatedFuelCost ||
       !formData.startPoint ||
       !formData.endPoint
     ) {
@@ -52,7 +113,7 @@ function TripDispatcher() {
       return
     }
 
-    const vehicle = vehicles.find((v) => v.id === parseInt(formData.vehicleId))
+    const vehicle = vehicles.find((v) => String(v.id) === String(formData.vehicleId))
     if (!vehicle) {
       setSubmitError('Vehicle not found')
       return
@@ -68,9 +129,10 @@ function TripDispatcher() {
     setIsSubmitting(true)
     try {
       await addTrip({
-        vehicleId: parseInt(formData.vehicleId),
-        driverId: parseInt(formData.driverId),
+        vehicleId: formData.vehicleId.toString(),
+        driverId: formData.driverId.toString(),
         cargoWeight: formData.cargoWeight,
+        estimatedFuelCost: formData.estimatedFuelCost,
         startPoint: formData.startPoint,
         endPoint: formData.endPoint,
       })
@@ -88,6 +150,7 @@ function TripDispatcher() {
       vehicleId: '',
       driverId: '',
       cargoWeight: '',
+      estimatedFuelCost: '',
       startPoint: '',
       endPoint: '',
     })
@@ -97,6 +160,7 @@ function TripDispatcher() {
   const handleCompleteTrip = (trip) => {
     setSelectedTrip(trip)
     setEndOdometer(trip.startOdometer + 100)
+    setIsCompleteModalOpen(true)
   }
 
   const submitComplete = async () => {
@@ -107,7 +171,7 @@ function TripDispatcher() {
 
     setIsSubmitting(true)
     try {
-      await completeTrip(selectedTrip.id)
+      await completeTrip(selectedTrip.id, parseFloat(endOdometer))
       setIsCompleteModalOpen(false)
       setSelectedTrip(null)
       setEndOdometer('')
@@ -167,7 +231,7 @@ function TripDispatcher() {
                 <option value="">Choose vehicle...</option>
                 {availableVehicles.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.name} ({v.maxCapacity}kg capacity)
+                    {v.model} ({v.maxCapacity}kg capacity)
                   </option>
                 ))}
               </select>
@@ -202,18 +266,33 @@ function TripDispatcher() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Cargo Weight (kg) *
-            </label>
-            <input
-              type="number"
-              name="cargoWeight"
-              value={formData.cargoWeight}
-              onChange={handleInputChange}
-              placeholder="450"
-              className="input-field"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cargo Weight (kg) *
+              </label>
+              <input
+                type="number"
+                name="cargoWeight"
+                value={formData.cargoWeight}
+                onChange={handleInputChange}
+                placeholder="450"
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Est. Fuel Cost (₹) *
+              </label>
+              <input
+                type="number"
+                name="estimatedFuelCost"
+                value={formData.estimatedFuelCost}
+                onChange={handleInputChange}
+                placeholder="2500"
+                className="input-field"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -282,8 +361,8 @@ function TripDispatcher() {
                 <p className="text-sm text-gray-700 mb-2">
                   <strong>Vehicle:</strong>{' '}
                   {
-                    vehicles.find((v) => v.id === selectedTrip.vehicleId)
-                      ?.name
+                    vehicles.find((v) => String(v.id) === String(selectedTrip.vehicleId))
+                      ?.model
                   }
                 </p>
                 <p className="text-sm text-gray-700">
@@ -291,6 +370,7 @@ function TripDispatcher() {
                   km
                 </p>
               </div>
+
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -328,6 +408,29 @@ function TripDispatcher() {
         </div>
       </Modal>
 
+      <FilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        filterOptions={[
+          { key: 'status', label: 'Status', options: [
+            { value: 'dispatched', label: 'Dispatched' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'planned', label: 'Planned' }
+          ]}
+        ]}
+        sortConfig={sortConfig}
+        onSortChange={handleSortChange}
+        sortOptions={[
+          { value: 'id', label: 'Trip ID' },
+          { value: 'startPoint', label: 'Start Point' },
+          { value: 'endPoint', label: 'End Point' },
+          { value: 'cargoWeight', label: 'Cargo Weight' }
+        ]}
+        onReset={resetFilters}
+      />
+
       <div className="card overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -339,9 +442,10 @@ function TripDispatcher() {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Vehicle</th>
+                <th>Model</th>
                 <th>Driver</th>
                 <th>Cargo (kg)</th>
+                <th>Fuel (₹)</th>
                 <th>Route</th>
                 <th>Status</th>
                 <th>Distance</th>
@@ -349,45 +453,54 @@ function TripDispatcher() {
               </tr>
             </thead>
             <tbody>
-              {trips.map((trip) => (
-                <tr key={trip.id}>
-                  <td className="text-gray-600">#{trip.id}</td>
-                  <td className="font-medium">
-                    {
-                      vehicles.find((v) => v.id === trip.vehicleId)?.name
-                    }
-                  </td>
-                  <td>
-                    {drivers.find((d) => d.id === trip.driverId)?.name ||
-                      'N/A'}
-                  </td>
-                  <td>{trip.cargoWeight} kg</td>
-                  <td className="text-sm">
-                    {trip.startPoint} → {trip.endPoint}
-                  </td>
-                  <td>
-                    <StatusBadge status={trip.status} />
-                  </td>
-                  <td>
-                    {trip.endOdometer
-                      ? `${trip.endOdometer - trip.startOdometer} km`
-                      : '-'}
-                  </td>
-                  <td>
-                    {trip.status === 'dispatched' && (
-                      <button
-                        onClick={() => handleCompleteTrip(trip)}
-                        className="text-green-600 hover:text-green-800 text-sm"
-                      >
-                        Complete
-                      </button>
-                    )}
-                    {trip.status === 'completed' && (
-                      <span className="text-gray-500 text-sm">Completed</span>
-                    )}
+              {filteredTrips.map((trip) => {
+                const vehicle = vehicles.find((v) => String(v.id) === String(trip.vehicleId))
+                const driver = drivers.find((d) => String(d.id) === String(trip.driverId))
+                return (
+                  <tr key={trip.id}>
+                    <td className="text-gray-600">#{trip.id}</td>
+                    <td className="font-medium">
+                      {vehicle?.model || 'Unknown'}
+                    </td>
+                    <td>
+                      {driver?.name || 'N/A'}
+                    </td>
+                    <td>{trip.cargoWeight} kg</td>
+                    <td className="text-gray-600">₹{trip.estimatedFuelCost ? trip.estimatedFuelCost.toLocaleString() : '0'}</td>
+                    <td className="text-sm">
+                      {trip.startPoint} → {trip.endPoint}
+                    </td>
+                    <td>
+                      <StatusBadge status={trip.status} />
+                    </td>
+                    <td>
+                      {trip.endOdometer && trip.startOdometer
+                        ? `${trip.endOdometer - trip.startOdometer} km`
+                        : '-'}
+                    </td>
+                    <td>
+                      {trip.status === 'dispatched' && (
+                        <button
+                          onClick={() => handleCompleteTrip(trip)}
+                          className="text-green-600 hover:text-green-800 text-sm"
+                        >
+                          Complete
+                        </button>
+                      )}
+                      {trip.status === 'completed' && (
+                        <span className="text-gray-500 text-sm">Completed</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              {filteredTrips.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={9} className="text-center py-12 text-gray-400">
+                    No trips found matching your criteria.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

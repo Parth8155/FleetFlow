@@ -1,31 +1,82 @@
 import { useState, useEffect } from 'react'
-import { useFleetStore } from '../store'
+import { useFleetStore, useAuthStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
+import FilterBar from '../components/FilterBar'
 
 function VehicleRegistry() {
   const { vehicles, fetchVehicles, addVehicle, updateVehicle, deleteVehicle, loading, error } = useFleetStore()
+  const { user } = useAuthStore()
+  const isManager = user?.role === 'manager'
+  
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    name: '',
     model: '',
     licensePlate: '',
     maxCapacity: '',
     type: 'van',
+    odometer: '',
   })
+
+  // Filtering & Sorting State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState({ status: '', type: '' })
+  const [sortConfig, setSortConfig] = useState({ key: 'model', direction: 'asc' })
 
   useEffect(() => {
     fetchVehicles()
   }, [])
 
+  const filteredVehicles = vehicles
+    .filter((vehicle) => {
+      const matchesSearch =
+        (vehicle.model || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (vehicle.licensePlate || '').toLowerCase().includes(searchQuery.toLowerCase())
+      
+      const matchesStatus = filters.status ? vehicle.status === filters.status : true
+      const matchesType = filters.type ? vehicle.type === filters.type : true
+
+      return matchesSearch && matchesStatus && matchesType
+    })
+    .sort((a, b) => {
+      const aValue = a[sortConfig.key] || ''
+      const bValue = b[sortConfig.key] || ''
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1
+      }
+      return 0
+    })
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSortChange = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
+  const resetFilters = () => {
+    setSearchQuery('')
+    setFilters({ status: '', type: '' })
+    setSortConfig({ key: 'model', direction: 'asc' })
+  }
+
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'maxCapacity' ? parseFloat(value) : value,
+      [name]: name === 'maxCapacity' || name === 'odometer' ? parseFloat(value) : value,
     }))
   }
 
@@ -34,7 +85,6 @@ function VehicleRegistry() {
     setSubmitError('')
 
     if (
-      !formData.name ||
       !formData.model ||
       !formData.licensePlate ||
       !formData.maxCapacity
@@ -61,11 +111,11 @@ function VehicleRegistry() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
       model: '',
       licensePlate: '',
       maxCapacity: '',
       type: 'van',
+      odometer: '',
     })
     setEditingId(null)
     setSubmitError('')
@@ -100,36 +150,64 @@ function VehicleRegistry() {
           <h2 className="text-2xl font-bold text-gray-900">Vehicle Registry</h2>
           <p className="text-gray-500 mt-1">Manage your fleet inventory</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm()
-            setIsModalOpen(true)
-          }}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <span className="text-lg leading-none">+</span> Add Vehicle
-        </button>
+        {isManager && (
+          <button
+            onClick={() => {
+              resetForm()
+              setIsModalOpen(true)
+            }}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <span className="text-lg leading-none">+</span> Add Vehicle
+          </button>
+        )}
       </div>
+
+      <FilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        filterOptions={[
+          { key: 'status', label: 'Status', options: [
+            { value: 'active', label: 'Active' },
+            { value: 'maintenance', label: 'Maintenance' },
+            { value: 'active', label: 'Active' }
+          ]},
+          { key: 'type', label: 'Type', options: [
+            { value: 'van', label: 'Van' },
+            { value: 'truck', label: 'Truck' }
+          ]}
+        ]}
+        sortConfig={sortConfig}
+        onSortChange={handleSortChange}
+        sortOptions={[
+          { value: 'model', label: 'Model' },
+          { value: 'licensePlate', label: 'License Plate' },
+          { value: 'maxCapacity', label: 'Capacity' },
+          { value: 'odometer', label: 'Odometer' }
+        ]}
+        onReset={resetFilters}
+      />
 
       <div className="card overflow-hidden">
         <div className="table-responsive">
           <table className="table w-full">
             <thead>
               <tr>
-                <th className="pl-6">Vehicle</th>
-                <th>Model</th>
+                <th className="pl-6">Model</th>
                 <th>License Plate</th>
                 <th>Capacity</th>
                 <th>Type</th>
+                <th>Odometer</th>
                 <th>Status</th>
-                <th className="text-right pr-6">Actions</th>
+                {isManager && <th className="text-right pr-6">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {vehicles.map((vehicle) => (
+              {filteredVehicles.map((vehicle) => (
                 <tr key={vehicle.id} className="group hover:bg-gray-50/50">
-                  <td className="pl-6 py-4 font-medium text-gray-800">{vehicle.name}</td>
-                  <td>{vehicle.model}</td>
+                  <td className="pl-6 py-4 font-medium text-gray-800">{vehicle.model}</td>
                   <td className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block">{vehicle.licensePlate}</td>
                   <td>{vehicle.maxCapacity} kg</td>
                   <td>
@@ -137,29 +215,34 @@ function VehicleRegistry() {
                       {vehicle.type}
                     </span>
                   </td>
+                  <td className="font-mono text-sm text-gray-600">
+                    {vehicle.odometer.toLocaleString()} km
+                  </td>
                   <td>
                     <StatusBadge status={vehicle.status} />
                   </td>
-                  <td className="text-right pr-6 space-x-2">
-                    <button
-                      onClick={() => handleEdit(vehicle)}
-                      className="text-indigo-600 hover:text-indigo-800 font-medium text-sm px-3 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(vehicle.id)}
-                      className="text-red-500 hover:text-red-700 font-medium text-sm px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </td>
+                  {isManager && (
+                    <td className="text-right pr-6 space-x-2">
+                      <button
+                        onClick={() => handleEdit(vehicle)}
+                        className="text-indigo-600 hover:text-indigo-800 font-medium text-sm px-3 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(vehicle.id)}
+                        className="text-red-500 hover:text-red-700 font-medium text-sm px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
-              {vehicles.length === 0 && !loading && (
+              {filteredVehicles.length === 0 && !loading && (
                 <tr>
-                  <td colSpan="7" className="text-center py-12 text-gray-400">
-                    No vehicles found. Add one to get started.
+                  <td colSpan={isManager ? 6 : 5} className="text-center py-12 text-gray-400">
+                    No vehicles found matching your criteria.
                   </td>
                 </tr>
               )}
@@ -182,39 +265,24 @@ function VehicleRegistry() {
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vehicle Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="e.g., Van-05"
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Model
-              </label>
-              <input
-                type="text"
-                name="model"
-                value={formData.model}
-                onChange={handleInputChange}
-                placeholder="e.g., Toyota Hiace"
-                className="input-field"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Model Name *
+            </label>
+            <input
+              type="text"
+              name="model"
+              value={formData.model}
+              onChange={handleInputChange}
+              placeholder="e.g., Toyota Hiace / Van-05"
+              className="input-field"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                License Plate
+                License Plate *
               </label>
               <input
                 type="text"
@@ -227,7 +295,7 @@ function VehicleRegistry() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Max Capacity (kg)
+                Max Capacity (kg) *
               </label>
               <input
                 type="number"
@@ -239,6 +307,7 @@ function VehicleRegistry() {
               />
             </div>
           </div>
+
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -256,6 +325,21 @@ function VehicleRegistry() {
                 <option value="bike">Bike</option>
               </select>
             </div>
+            {!editingId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Initial Odometer (km)
+                </label>
+                <input
+                  type="number"
+                  name="odometer"
+                  value={formData.odometer}
+                  onChange={handleInputChange}
+                  placeholder="0"
+                  className="input-field"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -280,55 +364,6 @@ function VehicleRegistry() {
         </form>
       </Modal>
 
-      <div className="card overflow-hidden">
-        <div className="table-responsive">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Vehicle Name</th>
-                <th>Model</th>
-                <th>License Plate</th>
-                <th>Type</th>
-                <th>Capacity</th>
-                <th>Odometer</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vehicles.map((vehicle) => (
-                <tr key={vehicle.id}>
-                  <td className="font-medium">{vehicle.name}</td>
-                  <td>{vehicle.model}</td>
-                  <td className="text-gray-600">{vehicle.licensePlate}</td>
-                  <td className="capitalize">{vehicle.type}</td>
-                  <td>{vehicle.maxCapacity} kg</td>
-                  <td>{vehicle.odometer} km</td>
-                  <td>
-                    <StatusBadge status={vehicle.status} />
-                  </td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(vehicle)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(vehicle.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   )
 }
