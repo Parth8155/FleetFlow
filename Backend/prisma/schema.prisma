@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("dispatcher") // manager, dispatcher, safety, analyst
+  status    String   @default("active") // active, inactive, suspended
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Vehicle {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  model             String
+  licensePlate      String   @unique
+  maxCapacity       Float    // in kg
+  type              String   // truck, van, bike
+  status            String   @default("available") // available, on-trip, in-shop, retired
+  odometer          Float    @default(0)
+  lastMaintenance   DateTime?
+  region            String   // North, South, East, West
+  acquisitionCost   Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  trips             Trip[]
+  maintenance       MaintenanceRecord[]
+  expenses          Expense[]
+
+  @@map("vehicles")
+}
+
+model Driver {
+  id                String   @id @default(cuid())
+  name              String
+  licenseNumber     String   @unique
+  licenseExpiry     DateTime
+  licenseCategory   String   // A, B, C, D, B+E
+  status            String   @default("on-duty") // on-duty, off-duty, suspended
+  safetyScore       Float    @default(100)
+  tripsCompleted    Int      @default(0)
+  lastTripDate      DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  trips             Trip[]
+
+  @@map("drivers")
+}
+
+model Trip {
+  id                String   @id @default(cuid())
+  vehicleId         String
+  driverId          String
+  cargoWeight       Float    // in kg
+  startPoint        String
+  endPoint          String
+  status            String   @default("draft") // draft, dispatched, completed, cancelled
+  startOdometer     Float
+  endOdometer       Float?
+  startTime         DateTime @default(now())
+  endTime           DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver            Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("trips")
+}
+
+model MaintenanceRecord {
+  id                String   @id @default(cuid())
+  vehicleId         String
+  type              String   // preventative, reactive, emergency
+  description       String
+  cost              Float
+  status            String   @default("scheduled") // scheduled, in-progress, completed
+  scheduledDate     DateTime?
+  completedDate     DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+}
+
+model Expense {
+  id                String   @id @default(cuid())
+  vehicleId         String
+  type              String   // fuel, maintenance, other
+  amount            Float    // in rupees
+  units             Float?   // for fuel: liters
+  description       String?
+  date              DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+model Dashboard {
+  id                String   @id @default(cuid())
+  activeFleet       Int      @default(0)
+  maintenanceAlerts Int      @default(0)
+  utilizationRate   Float    @default(0)
+  pendingCargo      Int      @default(0)
+  updatedAt         DateTime @updatedAt
+
+  @@map("dashboard_metrics")
+}
