@@ -50,9 +50,10 @@ function Analytics() {
     ...maintenanceLogs.filter((m) => m.status === 'completed')
   ].reduce((sum, item) => sum + (item.amount || item.cost || 0), 0)
 
+  const totalFuelFromTrips = completedTrips.reduce((sum, t) => sum + (t.actualFuelCost || 0), 0)
   const totalFuel = expenses
     .filter((e) => e.type === 'fuel')
-    .reduce((sum, e) => sum + e.amount, 0)
+    .reduce((sum, e) => sum + e.amount, 0) + totalFuelFromTrips
 
   const totalCost = totalMaintenance + totalFuel
   const netProfit = totalRevenue - totalCost
@@ -73,6 +74,9 @@ function Analytics() {
       if (!monthlyMap[month]) monthlyMap[month] = { month, revenue: 0, fuel: 0, maintenance: 0, distance: 0, fuelLiters: 0 }
       monthlyMap[month].revenue += rev
       monthlyMap[month].distance += dist
+      // Include fuel recorded directly on the trip
+      monthlyMap[month].fuel += (t.actualFuelCost || 0)
+      monthlyMap[month].fuelLiters += (t.fuelConsumed || 0)
     })
 
     // Group Fuel Expenses
@@ -107,7 +111,8 @@ function Analytics() {
   const costliestVehicles = vehicles.map(v => {
     const cost = [
       ...expenses.filter(e => e.vehicleId === v.id),
-      ...maintenanceLogs.filter(m => m.vehicleId === v.id && m.status === 'completed')
+      ...maintenanceLogs.filter(m => m.vehicleId === v.id && m.status === 'completed'),
+      ...trips.filter(t => t.vehicleId === v.id).map(t => ({ amount: t.actualFuelCost || 0 }))
     ].reduce((sum, item) => sum + (item.amount || item.cost || 0), 0)
     return { name: v.model.split(' ')[0], fullModel: v.model, cost }
   }).sort((a,b) => b.cost - a.cost).slice(0, 5)
@@ -128,7 +133,8 @@ function Analytics() {
     // Sum maintenance expenses + maintenance records + fuel for this vehicle
     const vehicleExpense = [
       ...expenses.filter((e) => e.vehicleId === vehicle.id),
-      ...maintenanceLogs.filter((m) => m.vehicleId === vehicle.id && m.status === 'completed')
+      ...maintenanceLogs.filter((m) => m.vehicleId === vehicle.id && m.status === 'completed'),
+      ...vehicleTrips.map(t => ({ amount: t.actualFuelCost || 0 }))
     ].reduce((sum, item) => sum + (item.amount || item.cost || 0), 0)
 
     const vehicleRevenue = vehicleTrips.reduce((sum, t) => {

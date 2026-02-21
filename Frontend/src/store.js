@@ -200,9 +200,9 @@ export const useFleetStore = create((set) => ({
     }
   },
 
-  completeTrip: async (tripId, endOdometer) => {
+  completeTrip: async (tripId, endOdometer, fuelConsumed = null, actualFuelCost = null) => {
     try {
-      const completed = await api.trips.complete(tripId, endOdometer)
+      const completed = await api.trips.complete(tripId, endOdometer, fuelConsumed, actualFuelCost)
       set((state) => ({
         trips: state.trips.map((t) => (t.id === tripId ? completed : t)),
       }))
@@ -213,6 +213,25 @@ export const useFleetStore = create((set) => ({
       ])
       set({ vehicles: vData, drivers: dData })
       return completed
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
+
+  cancelTrip: async (tripId) => {
+    try {
+      const cancelled = await api.trips.cancel(tripId)
+      set((state) => ({
+        trips: state.trips.map((t) => (t.id === tripId ? cancelled : t)),
+      }))
+      // Re-fetch to reflect "available" status and updated odometer
+      const [vData, dData] = await Promise.all([
+        api.vehicles.getAll(),
+        api.drivers.getAll()
+      ])
+      set({ vehicles: vData, drivers: dData })
+      return cancelled
     } catch (error) {
       set({ error: error.message })
       throw error

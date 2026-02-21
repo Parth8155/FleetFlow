@@ -347,8 +347,9 @@ function DriverProfiles() {
         onFilterChange={handleFilterChange}
         filterOptions={[
           { key: 'status', label: 'Status', options: [
-            { value: 'on-duty', label: 'On Duty' },
-            { value: 'off-duty', label: 'Off Duty' }
+            { value: 'on-duty', label: 'Available (On-Duty)' },
+            { value: 'off-duty', label: 'Off Duty' },
+            { value: 'on-trip', label: 'On Trip' }
           ]},
           { key: 'licenseCategory', label: 'Category', options: [
             { value: 'B', label: 'B' },

@@ -170,9 +170,9 @@ function VehicleRegistry() {
         onFilterChange={handleFilterChange}
         filterOptions={[
           { key: 'status', label: 'Status', options: [
-            { value: 'active', label: 'Active' },
+            { value: 'available', label: 'Available' },
             { value: 'maintenance', label: 'Maintenance' },
-            { value: 'active', label: 'Active' }
+            { value: 'on-trip', label: 'On Trip' }
           ]},
           { key: 'type', label: 'Type', options: [
             { value: 'van', label: 'Van' },

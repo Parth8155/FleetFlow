@@ -5,11 +5,13 @@ import Modal from '../components/Modal'
 import FilterBar from '../components/FilterBar'
 
 function TripDispatcher() {
-  const { vehicles, drivers, trips, fetchVehicles, fetchDrivers, fetchTrips, addTrip, completeTrip, loading, error } = useFleetStore()
+  const { vehicles, drivers, trips, fetchVehicles, fetchDrivers, fetchTrips, addTrip, completeTrip, cancelTrip, loading, error } = useFleetStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [selectedTrip, setSelectedTrip] = useState(null)
   const [endOdometer, setEndOdometer] = useState('')
+  const [fuelConsumed, setFuelConsumed] = useState('')
+  const [actualFuelCost, setActualFuelCost] = useState('')
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -171,14 +173,33 @@ function TripDispatcher() {
 
     setIsSubmitting(true)
     try {
-      await completeTrip(selectedTrip.id, parseFloat(endOdometer))
+      await completeTrip(
+        selectedTrip.id, 
+        parseFloat(endOdometer),
+        fuelConsumed ? parseFloat(fuelConsumed) : null,
+        actualFuelCost ? parseFloat(actualFuelCost) : null
+      )
       setIsCompleteModalOpen(false)
       setSelectedTrip(null)
       setEndOdometer('')
+      setFuelConsumed('')
+      setActualFuelCost('')
     } catch (err) {
       alert(err.message || 'Failed to complete trip')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleCancelTrip = async (tripId) => {
+    if (!window.confirm('Are you sure you want to cancel this trip? The driver and vehicle will be set to available.')) {
+      return
+    }
+
+    try {
+      await cancelTrip(tripId)
+    } catch (err) {
+      alert(err.message || 'Failed to cancel trip')
     }
   }
 
@@ -385,6 +406,33 @@ function TripDispatcher() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fuel Consumed (L)
+                  </label>
+                  <input
+                    type="number"
+                    value={fuelConsumed}
+                    onChange={(e) => setFuelConsumed(e.target.value)}
+                    placeholder="45.5"
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Actual Fuel Cost (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={actualFuelCost}
+                    onChange={(e) => setActualFuelCost(e.target.value)}
+                    placeholder="4500"
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={submitComplete}
@@ -415,9 +463,10 @@ function TripDispatcher() {
         onFilterChange={handleFilterChange}
         filterOptions={[
           { key: 'status', label: 'Status', options: [
+            { value: 'planned', label: 'Planned' },
             { value: 'dispatched', label: 'Dispatched' },
             { value: 'completed', label: 'Completed' },
-            { value: 'planned', label: 'Planned' }
+            { value: 'cancelled', label: 'Cancelled' }
           ]}
         ]}
         sortConfig={sortConfig}
@@ -466,7 +515,16 @@ function TripDispatcher() {
                       {driver?.name || 'N/A'}
                     </td>
                     <td>{trip.cargoWeight} kg</td>
-                    <td className="text-gray-600">₹{trip.estimatedFuelCost ? trip.estimatedFuelCost.toLocaleString() : '0'}</td>
+                    <td className="text-gray-600">
+                      {trip.status === 'completed' ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">₹{trip.actualFuelCost?.toLocaleString() || '0'}</span>
+                          <span className="text-[10px] text-gray-400">Est: ₹{trip.estimatedFuelCost?.toLocaleString()}</span>
+                        </div>
+                      ) : (
+                        `₹${trip.estimatedFuelCost?.toLocaleString() || '0'}`
+                      )}
+                    </td>
                     <td className="text-sm">
                       {trip.startPoint} → {trip.endPoint}
                     </td>
@@ -479,17 +537,30 @@ function TripDispatcher() {
                         : '-'}
                     </td>
                     <td>
-                      {trip.status === 'dispatched' && (
-                        <button
-                          onClick={() => handleCompleteTrip(trip)}
-                          className="text-green-600 hover:text-green-800 text-sm"
-                        >
-                          Complete
-                        </button>
-                      )}
-                      {trip.status === 'completed' && (
-                        <span className="text-gray-500 text-sm">Completed</span>
-                      )}
+                      <div className="flex flex-col space-y-1">
+                        {trip.status === 'dispatched' && (
+                          <>
+                            <button
+                              onClick={() => handleCompleteTrip(trip)}
+                              className="text-green-600 hover:text-green-800 text-sm font-medium text-left"
+                            >
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => handleCancelTrip(trip.id)}
+                              className="text-red-500 hover:text-red-700 text-xs text-left"
+                            >
+                              Cancel Trip
+                            </button>
+                          </>
+                        )}
+                        {trip.status === 'cancelled' && (
+                          <span className="text-gray-400 text-sm">Cancelled</span>
+                        )}
+                        {trip.status === 'completed' && (
+                          <span className="text-gray-500 text-sm">Completed</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

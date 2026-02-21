@@ -17,7 +17,12 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   if (!isAuthenticated) {
-    return <Login />
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    )
   }
 
   return (
@@ -36,6 +41,7 @@ function AppContent() {
             <Route path="/drivers" element={<DriverProfiles />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </div>
         </main>

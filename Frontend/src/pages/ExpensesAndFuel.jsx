@@ -42,7 +42,7 @@ function ExpensesAndFuel() {
   }, [])
 
   // Combine fixed expenses and completed maintenance records for a unified view
-  const combinedMaintenance = [
+  const combinedMaintenances = [
     ...expenses.filter(e => e.type === 'maintenance'),
     ...maintenanceLogs
       .filter(m => m.status === 'completed')
@@ -54,9 +54,26 @@ function ExpensesAndFuel() {
         date: m.completedDate || m.updatedAt,
         type: 'maintenance'
       }))
-  ].sort((a, b) => new Date(b.date) - new Date(a.date))
+  ]
 
-  const filteredExpenses = expenses
+  const combinedFuelLogs = [
+    ...expenses.filter(e => e.type === 'fuel'),
+    ...trips
+      .filter(t => t.status === 'completed' && (t.fuelConsumed || t.actualFuelCost))
+      .map(t => ({
+        id: `trip-fuel-${t.id}`,
+        vehicleId: t.vehicleId,
+        amount: t.actualFuelCost || 0,
+        units: t.fuelConsumed || 0,
+        description: `Trip: ${t.startPoint} to ${t.endPoint}`,
+        date: t.endTime || t.updatedAt,
+        type: 'fuel'
+      }))
+  ]
+
+  const allCombined = [...combinedMaintenances, ...combinedFuelLogs, ...expenses.filter(e => e.type === 'other')]
+
+  const filteredItems = allCombined
     .filter((exp) => {
       const vehicle = vehicles.find((v) => v.id === exp.vehicleId)
       const vehicleModel = (vehicle?.model || '').toLowerCase()
@@ -75,6 +92,12 @@ function ExpensesAndFuel() {
       const aValue = a[sortConfig.key] || ''
       const bValue = b[sortConfig.key] || ''
       
+      if (new Date(aValue) !== 'Invalid Date' && new Date(bValue) !== 'Invalid Date' && sortConfig.key === 'date') {
+        return sortConfig.direction === 'asc' 
+          ? new Date(aValue) - new Date(bValue)
+          : new Date(bValue) - new Date(aValue)
+      }
+
       if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1
       }
@@ -148,15 +171,18 @@ function ExpensesAndFuel() {
   }
 
   // Calculate metrics
+  const completedTrips = trips.filter(t => t.status === 'completed')
+  const fuelFromTrips = completedTrips.reduce((sum, t) => sum + (t.actualFuelCost || 0), 0)
+  const litersFromTrips = completedTrips.reduce((sum, t) => sum + (t.fuelConsumed || 0), 0)
+
   const totalFuelCost = expenses
     .filter((e) => e.type === 'fuel')
-    .reduce((sum, e) => sum + e.amount, 0)
+    .reduce((sum, e) => sum + e.amount, 0) + fuelFromTrips
 
   const totalFuelLiters = expenses
     .filter((e) => e.type === 'fuel')
-    .reduce((sum, e) => sum + (e.units || 0), 0)
+    .reduce((sum, e) => sum + (e.units || 0), 0) + litersFromTrips
 
-  const completedTrips = trips.filter(t => t.status === 'completed')
   const totalDistance = completedTrips.reduce(
     (sum, t) => sum + ((t.endOdometer || 0) - (t.startOdometer || 0)),
     0
@@ -167,7 +193,7 @@ function ExpensesAndFuel() {
       ? (totalDistance / totalFuelLiters).toFixed(2)
       : 0
 
-  const totalMaintenanceCost = combinedMaintenance.reduce((sum, e) => sum + e.amount, 0)
+  const totalMaintenanceCost = combinedMaintenances.reduce((sum, e) => sum + e.amount, 0)
 
   const totalOperationalCost = totalFuelCost + totalMaintenanceCost
 
@@ -207,14 +233,10 @@ function ExpensesAndFuel() {
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Total Fuel Cost</p>
           <p className="text-3xl font-bold text-blue-600 mt-2">
-            ₹{expenses
-              .filter((e) => e.type === 'fuel')
-              .reduce((sum, e) => sum + e.amount, 0)}
+            ₹{totalFuelCost.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {expenses
-              .filter((e) => e.type === 'fuel')
-              .reduce((sum, e) => sum + (e.units || 0), 0)}L total
+            {totalFuelLiters.toLocaleString()}L total
           </p>
         </div>
 
@@ -224,7 +246,7 @@ function ExpensesAndFuel() {
             ₹{totalMaintenanceCost.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {combinedMaintenance.length} services & logs
+            {combinedMaintenances.length} services & logs
           </p>
         </div>
 
@@ -408,7 +430,7 @@ function ExpensesAndFuel() {
                 </tr>
               </thead>
               <tbody>
-                {filteredExpenses
+                {filteredItems
                   .filter((e) => e.type === 'fuel')
                   .map((exp) => (
                     <tr key={exp.id}>
@@ -423,7 +445,7 @@ function ExpensesAndFuel() {
                       <td className="text-sm">{new Date(exp.date).toLocaleDateString()}</td>
                     </tr>
                   ))}
-                {filteredExpenses.filter((e) => e.type === 'fuel').length === 0 && (
+                {filteredItems.filter((e) => e.type === 'fuel').length === 0 && (
                    <tr>
                      <td colSpan={4} className="text-center py-6 text-gray-400">No fuel logs found.</td>
                    </tr>
@@ -451,7 +473,9 @@ function ExpensesAndFuel() {
                 </tr>
               </thead>
               <tbody>
-                {combinedMaintenance.map((exp) => (
+                {filteredItems
+                  .filter(e => e.type === 'maintenance')
+                  .map((exp) => (
                     <tr key={exp.id}>
                       <td className="font-medium">
                         {
@@ -466,7 +490,7 @@ function ExpensesAndFuel() {
                       <td className="text-sm">{new Date(exp.date).toLocaleDateString()}</td>
                     </tr>
                   ))}
-                {combinedMaintenance.length === 0 && (
+                {filteredItems.filter(e => e.type === 'maintenance').length === 0 && (
                    <tr>
                      <td colSpan={4} className="text-center py-6 text-gray-400">No maintenance logs found.</td>
                    </tr>
