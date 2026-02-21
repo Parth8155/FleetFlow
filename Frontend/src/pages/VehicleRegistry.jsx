@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFleetStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
 
 function VehicleRegistry() {
-  const { vehicles, addVehicle, updateVehicle, deleteVehicle } = useFleetStore()
+  const { vehicles, fetchVehicles, addVehicle, updateVehicle, deleteVehicle, loading, error } = useFleetStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     model: '',
@@ -16,6 +18,10 @@ function VehicleRegistry() {
     region: 'North',
   })
 
+  useEffect(() => {
+    fetchVehicles()
+  }, [])
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({
@@ -24,8 +30,9 @@ function VehicleRegistry() {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitError('')
 
     if (
       !formData.name ||
@@ -33,26 +40,24 @@ function VehicleRegistry() {
       !formData.licensePlate ||
       !formData.maxCapacity
     ) {
-      alert('Please fill in all required fields')
+      setSubmitError('Please fill in all required fields')
       return
     }
 
-    if (editingId) {
-      updateVehicle(editingId, {
-        ...formData,
-        odometer: vehicles.find((v) => v.id === editingId).odometer,
-      })
-    } else {
-      addVehicle({
-        ...formData,
-        status: 'available',
-        odometer: 0,
-        lastMaintenance: new Date().toISOString().split('T')[0],
-      })
+    setIsSubmitting(true)
+    try {
+      if (editingId) {
+        await updateVehicle(editingId, formData)
+      } else {
+        await addVehicle(formData)
+      }
+      resetForm()
+      setIsModalOpen(false)
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to save vehicle')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    resetForm()
-    setIsModalOpen(false)
   }
 
   const resetForm = () => {
@@ -65,6 +70,7 @@ function VehicleRegistry() {
       region: 'North',
     })
     setEditingId(null)
+    setSubmitError('')
   }
 
   const handleEdit = (vehicle) => {
@@ -73,14 +79,24 @@ function VehicleRegistry() {
     setIsModalOpen(true)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this vehicle?')) {
-      deleteVehicle(id)
+      try {
+        await deleteVehicle(id)
+      } catch (err) {
+        alert(err.message || 'Failed to delete vehicle')
+      }
     }
   }
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">Vehicle Registry</h2>
         <button
@@ -102,6 +118,11 @@ function VehicleRegistry() {
         }}
         title={editingId ? 'Edit Vehicle' : 'Add New Vehicle'}
       >
+        {submitError && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+            {submitError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -196,8 +217,12 @@ function VehicleRegistry() {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button type="submit" className="btn btn-primary flex-1">
-              {editingId ? 'Update Vehicle' : 'Add Vehicle'}
+            <button 
+              type="submit" 
+              className="btn btn-primary flex-1"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : (editingId ? 'Update Vehicle' : 'Add Vehicle')}
             </button>
             <button
               type="button"

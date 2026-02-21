@@ -1,10 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFleetStore, useDashboardStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 
 function Dashboard() {
-  const { vehicles, trips, drivers } = useFleetStore()
+  const { vehicles, trips, drivers, fetchVehicles, fetchTrips, fetchDrivers, loading, error } = useFleetStore()
   const { filters, setFilters } = useDashboardStore()
+
+  useEffect(() => {
+    fetchVehicles()
+    fetchTrips()
+    fetchDrivers()
+  }, [])
 
   const stats = {
     activeFleet: vehicles.filter((v) => v.status === 'on-trip').length,
@@ -25,9 +31,21 @@ function Dashboard() {
     return true
   })
 
+  if (loading && vehicles.length === 0) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full">
+        <p className="text-gray-600">Loading dashboard data...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 space-y-6">
-      {/* KPI Cards */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card p-6">
           <div className="flex items-center justify-between">

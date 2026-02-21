@@ -1,13 +1,21 @@
+import { useEffect } from 'react'
 import { useFleetStore } from '../store'
 
 function Analytics() {
-  const { vehicles, trips, expenses, drivers } = useFleetStore()
+  const { vehicles, trips, expenses, drivers, fetchVehicles, fetchTrips, fetchExpenses, fetchDrivers, loading, error } = useFleetStore()
+
+  useEffect(() => {
+    fetchVehicles()
+    fetchTrips()
+    fetchExpenses()
+    fetchDrivers()
+  }, [])
 
   // Calculate KPIs
   const completedTrips = trips.filter((t) => t.status === 'completed')
 
   const totalRevenue = completedTrips.reduce((sum, t) => {
-    const distance = t.endOdometer - t.startOdometer
+    const distance = (t.endOdometer || 0) - (t.startOdometer || 0)
     return sum + distance * 10 // Assuming ₹10 per km
   }, 0)
 
@@ -29,7 +37,7 @@ function Analytics() {
       .reduce((sum, e) => sum + e.amount, 0)
 
     const vehicleRevenue = vehicleTrips.reduce((sum, t) => {
-      const distance = t.endOdometer - t.startOdometer
+      const distance = (t.endOdometer || 0) - (t.startOdometer || 0)
       return sum + distance * 10
     }, 0)
 
@@ -52,7 +60,7 @@ function Analytics() {
       .reduce((sum, e) => sum + (e.unit || 0), 0) || 0
 
   const totalDistance = completedTrips.reduce(
-    (sum, t) => sum + (t.endOdometer - t.startOdometer),
+    (sum, t) => sum + ((t.endOdometer || 0) - (t.startOdometer || 0)),
     0
   )
 
@@ -68,8 +76,22 @@ function Analytics() {
   const costPerTrip =
     completedTrips.length > 0 ? (totalCost / completedTrips.length).toFixed(2) : 0
 
+  if (loading && vehicles.length === 0) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full">
+        <p className="text-gray-600">Loading analytics data...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+      
       <h2 className="text-2xl font-bold text-gray-900">
         Operational Analytics & Reports
       </h2>

@@ -47,9 +47,11 @@ A modern, modular UI for the FleetFlow Fleet & Logistics Management System.
 
 - **Frontend**: React 18 + Vite
 - **State Management**: Zustand
+- **API Client**: Axios with interceptors
 - **Styling**: Tailwind CSS
 - **Routing**: React Router v6
 - **Language**: JavaScript (JSX)
+- **Authentication**: JWT with Bearer tokens
 
 ## Installation
 
@@ -163,9 +165,76 @@ src/
 ✅ **Status Management**: Status automatically updates during trip lifecycle
 ✅ **Financial Tracking**: Automated cost-per-KM calculation
 
-## API Integration Ready
+## API Integration with Axios
 
-The application state is managed with Zustand, making it easy to integrate with a backend API. Replace the mock data in `store.js` with API calls to your backend.
+The frontend uses Axios for all backend communication with automatic token injection and error handling.
+
+### Configuration
+
+Set your backend API URL in `.env`:
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+
+### Authentication Flow
+
+1. User logs in → JWT token stored in localStorage
+2. Axios request interceptor adds `Authorization: Bearer <token>` header automatically
+3. Response interceptor handles errors and 401 redirects to login
+4. All API calls include proper error handling and data normalization
+
+### Using the API Client
+
+```javascript
+// In any component
+import api from '../services/api'
+
+// Authentication
+await api.auth.login(email, password)
+await api.auth.register(email, password, name, role)
+await api.auth.logout()
+
+// Vehicles
+const vehicles = await api.vehicles.getAll()
+const vehicle = await api.vehicles.getById(id)
+await api.vehicles.create(vehicleData)
+await api.vehicles.update(id, vehicleData)
+await api.vehicles.delete(id)
+
+// Drivers
+const drivers = await api.drivers.getAll()
+await api.drivers.create(driverData)
+
+// Trips
+const trips = await api.trips.getAll()
+await api.trips.create(tripData)
+await api.trips.complete(tripId)
+
+// Maintenance, Expenses, Analytics
+// See INTEGRATION_GUIDE.md for complete endpoint reference
+```
+
+### Error Handling
+
+All API errors are normalized to:
+```javascript
+{
+  status: 400,           // HTTP status code
+  code: 'VALIDATION_ERROR',
+  message: 'User-friendly error message',
+  details: { field: 'error details' }
+}
+```
+
+### Test Credentials
+
+After running backend seeding:
+- **Manager**: manager@fleetflow.com / password123
+- **Dispatcher**: dispatcher@fleetflow.com / password123
+- **Safety Officer**: safety@fleetflow.com / password123
+- **Analyst**: analyst@fleetflow.com / password123
+
+See [INTEGRATION_GUIDE.md](../INTEGRATION_GUIDE.md) for complete API documentation and [FRONTEND_BACKEND_INTEGRATION.md](../FRONTEND_BACKEND_INTEGRATION.md) for integration details.
 
 ## Component Reusability
 

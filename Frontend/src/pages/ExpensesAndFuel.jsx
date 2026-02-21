@@ -1,17 +1,24 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFleetStore } from '../store'
 import Modal from '../components/Modal'
 
 function ExpensesAndFuel() {
-  const { vehicles, expenses, addExpense } = useFleetStore()
+  const { vehicles, expenses, fetchVehicles, fetchExpenses, addExpense, loading, error } = useFleetStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [expenseType, setExpenseType] = useState('fuel')
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     vehicleId: '',
     amount: '',
     unit: '',
     description: '',
   })
+
+  useEffect(() => {
+    fetchVehicles()
+    fetchExpenses()
+  }, [])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -21,24 +28,31 @@ function ExpensesAndFuel() {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitError('')
 
     if (!formData.vehicleId || !formData.amount) {
-      alert('Please fill in required fields')
+      setSubmitError('Please fill in required fields')
       return
     }
 
-    addExpense({
-      ...formData,
-      vehicleId: parseInt(formData.vehicleId),
-      type: expenseType,
-      unitType: expenseType === 'fuel' ? 'liters' : null,
-      date: new Date().toISOString().split('T')[0],
-    })
-
-    resetForm()
-    setIsModalOpen(false)
+    setIsSubmitting(true)
+    try {
+      await addExpense({
+        vehicleId: parseInt(formData.vehicleId),
+        type: expenseType,
+        amount: parseFloat(formData.amount),
+        unit: formData.unit ? parseFloat(formData.unit) : undefined,
+        description: formData.description,
+      })
+      resetForm()
+      setIsModalOpen(false)
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to log expense')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const resetForm = () => {
@@ -48,6 +62,7 @@ function ExpensesAndFuel() {
       unit: '',
       description: '',
     })
+    setSubmitError('')
   }
 
   // Calculate metrics
@@ -77,6 +92,12 @@ function ExpensesAndFuel() {
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">
           Expenses & Fuel Logging
@@ -97,15 +118,23 @@ function ExpensesAndFuel() {
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Total Fuel Cost</p>
           <p className="text-3xl font-bold text-blue-600 mt-2">
-            ₹{totalFuelCost}
+            ₹{expenses
+              .filter((e) => e.type === 'fuel')
+              .reduce((sum, e) => sum + e.amount, 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">{totalFuelLiters}L total</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {expenses
+              .filter((e) => e.type === 'fuel')
+              .reduce((sum, e) => sum + (e.unit || 0), 0)}L total
+          </p>
         </div>
 
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Maintenance Cost</p>
           <p className="text-3xl font-bold text-orange-600 mt-2">
-            ₹{totalMaintenanceCost}
+            ₹{expenses
+              .filter((e) => e.type === 'maintenance')
+              .reduce((sum, e) => sum + e.amount, 0)}
           </p>
           <p className="text-xs text-gray-500 mt-1">
             {expenses.filter((e) => e.type === 'maintenance').length} services
@@ -115,14 +144,17 @@ function ExpensesAndFuel() {
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Fuel Efficiency</p>
           <p className="text-3xl font-bold text-green-600 mt-2">
-            {avgFuelEfficiency} km/L
+            {vehicles.length > 0 && expenses.filter(e => e.type === 'fuel').length > 0
+              ? (vehicles.reduce((sum, v) => sum + (v.odometer || 0), 0) /
+                  expenses.filter((e) => e.type === 'fuel').reduce((sum, e) => sum + (e.unit || 0), 0)).toFixed(2)
+              : '0'} km/L
           </p>
         </div>
 
         <div className="card p-6">
           <p className="text-gray-600 text-sm">Total Operational Cost</p>
           <p className="text-3xl font-bold text-red-600 mt-2">
-            ₹{totalOperationalCost}
+            ₹{expenses.reduce((sum, e) => sum + e.amount, 0)}
           </p>
           <p className="text-xs text-gray-500 mt-1">Fuel + Maintenance</p>
         </div>
@@ -137,6 +169,11 @@ function ExpensesAndFuel() {
         }}
         title="Log Expense"
       >
+        {submitError && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+            {submitError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-4 mb-4">
             <label className="flex items-center gap-2">
@@ -225,8 +262,12 @@ function ExpensesAndFuel() {
           )}
 
           <div className="flex gap-3 pt-4">
-            <button type="submit" className="btn btn-primary flex-1">
-              Log Expense
+            <button 
+              type="submit" 
+              className="btn btn-primary flex-1"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Logging...' : 'Log Expense'}
             </button>
             <button
               type="button"

@@ -1,9 +1,10 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store'
 
 function Navbar({ onMenuClick }) {
   const { user, logout } = useAuthStore()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const getPageTitle = () => {
     const titles = {
@@ -16,6 +17,11 @@ function Navbar({ onMenuClick }) {
       '/analytics': 'Analytics & Reports',
     }
     return titles[location.pathname] || 'FleetFlow'
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
   }
 
   return (
@@ -46,11 +52,12 @@ function Navbar({ onMenuClick }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600">
-            {user?.name || 'User'}
+          <div className="text-sm">
+            <div className="font-medium text-gray-900">{user?.name || 'User'}</div>
+            <div className="text-xs text-gray-500 capitalize">{user?.role || 'user'}</div>
           </div>
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="btn btn-secondary text-sm"
           >
             Logout

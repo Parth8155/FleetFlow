@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFleetStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
 
 function TripDispatcher() {
-  const { vehicles, drivers, trips, addTrip, completeTrip } = useFleetStore()
+  const { vehicles, drivers, trips, fetchVehicles, fetchDrivers, fetchTrips, addTrip, completeTrip, loading, error } = useFleetStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [selectedTrip, setSelectedTrip] = useState(null)
   const [endOdometer, setEndOdometer] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     vehicleId: '',
     driverId: '',
@@ -16,6 +18,12 @@ function TripDispatcher() {
     startPoint: '',
     endPoint: '',
   })
+
+  useEffect(() => {
+    fetchVehicles()
+    fetchDrivers()
+    fetchTrips()
+  }, [])
 
   const availableVehicles = vehicles.filter((v) => v.status === 'available')
   const availableDrivers = drivers.filter((d) => d.status === 'on-duty')
@@ -29,8 +37,9 @@ function TripDispatcher() {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitError('')
 
     if (
       !formData.vehicleId ||
@@ -39,36 +48,38 @@ function TripDispatcher() {
       !formData.startPoint ||
       !formData.endPoint
     ) {
-      alert('Please fill in all fields')
+      setSubmitError('Please fill in all fields')
       return
     }
 
     const vehicle = vehicles.find((v) => v.id === parseInt(formData.vehicleId))
     if (!vehicle) {
-      alert('Vehicle not found')
+      setSubmitError('Vehicle not found')
       return
     }
 
     if (formData.cargoWeight > vehicle.maxCapacity) {
-      alert(
+      setSubmitError(
         `Cargo weight (${formData.cargoWeight}kg) exceeds vehicle capacity (${vehicle.maxCapacity}kg)`
       )
       return
     }
 
+    setIsSubmitting(true)
     try {
-      addTrip({
-        ...formData,
+      await addTrip({
         vehicleId: parseInt(formData.vehicleId),
         driverId: parseInt(formData.driverId),
-        status: 'dispatched',
-        startOdometer: vehicle.odometer,
-        createdAt: new Date().toISOString().split('T')[0],
+        cargoWeight: formData.cargoWeight,
+        startPoint: formData.startPoint,
+        endPoint: formData.endPoint,
       })
       resetForm()
       setIsModalOpen(false)
-    } catch (error) {
-      alert(error.message)
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to create trip')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -80,28 +91,41 @@ function TripDispatcher() {
       startPoint: '',
       endPoint: '',
     })
+    setSubmitError('')
   }
 
   const handleCompleteTrip = (trip) => {
     setSelectedTrip(trip)
     setEndOdometer(trip.startOdometer + 100)
-    setIsCompleteModalOpen(true)
   }
 
-  const submitComplete = () => {
+  const submitComplete = async () => {
     if (!endOdometer) {
       alert('Please enter final odometer reading')
       return
     }
 
-    completeTrip(selectedTrip.id, parseInt(endOdometer))
-    setIsCompleteModalOpen(false)
-    setSelectedTrip(null)
-    setEndOdometer('')
+    setIsSubmitting(true)
+    try {
+      await completeTrip(selectedTrip.id)
+      setIsCompleteModalOpen(false)
+      setSelectedTrip(null)
+      setEndOdometer('')
+    } catch (err) {
+      alert(err.message || 'Failed to complete trip')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">Trip Dispatcher</h2>
         <button
@@ -123,6 +147,11 @@ function TripDispatcher() {
         }}
         title="Create New Trip"
       >
+        {submitError && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+            {submitError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -217,8 +246,12 @@ function TripDispatcher() {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button type="submit" className="btn btn-primary flex-1">
-              Create Trip
+            <button 
+              type="submit" 
+              className="btn btn-primary flex-1"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Creating...' : 'Create Trip'}
             </button>
             <button
               type="button"
@@ -276,11 +309,15 @@ function TripDispatcher() {
                 <button
                   onClick={submitComplete}
                   className="btn btn-success flex-1"
+                  disabled={isSubmitting}
                 >
-                  Complete Trip
+                  {isSubmitting ? 'Completing...' : 'Complete Trip'}
                 </button>
                 <button
-                  onClick={() => setIsCompleteModalOpen(false)}
+                  onClick={() => {
+                    setIsCompleteModalOpen(false)
+                    setSelectedTrip(null)
+                  }}
                   className="btn btn-secondary flex-1"
                 >
                   Cancel

@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFleetStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
 
 function DriverProfiles() {
-  const { drivers, addDriver, updateDriver } = useFleetStore()
+  const { drivers, fetchDrivers, addDriver, updateDriver, loading, error } = useFleetStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     licenseNumber: '',
@@ -14,6 +16,10 @@ function DriverProfiles() {
     licenseCategory: 'B',
     safetyScore: 100,
   })
+
+  useEffect(() => {
+    fetchDrivers()
+  }, [])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -39,8 +45,9 @@ function DriverProfiles() {
     return expiry <= today
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitError('')
 
     if (
       !formData.name ||
@@ -48,22 +55,24 @@ function DriverProfiles() {
       !formData.licenseExpiry ||
       !formData.licenseCategory
     ) {
-      alert('Please fill in all required fields')
+      setSubmitError('Please fill in all required fields')
       return
     }
 
-    if (editingId) {
-      updateDriver(editingId, formData)
-    } else {
-      addDriver({
-        ...formData,
-        status: 'on-duty',
-        tripsCompleted: 0,
-      })
+    setIsSubmitting(true)
+    try {
+      if (editingId) {
+        await updateDriver(editingId, formData)
+      } else {
+        await addDriver(formData)
+      }
+      resetForm()
+      setIsModalOpen(false)
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to save driver')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    resetForm()
-    setIsModalOpen(false)
   }
 
   const resetForm = () => {
@@ -75,6 +84,7 @@ function DriverProfiles() {
       safetyScore: 100,
     })
     setEditingId(null)
+    setSubmitError('')
   }
 
   const handleEdit = (driver) => {
@@ -94,6 +104,12 @@ function DriverProfiles() {
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">Driver Profiles</h2>
         <button
@@ -149,6 +165,11 @@ function DriverProfiles() {
         }}
         title={editingId ? 'Edit Driver' : 'Add New Driver'}
       >
+        {submitError && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+            {submitError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -230,8 +251,12 @@ function DriverProfiles() {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button type="submit" className="btn btn-primary flex-1">
-              {editingId ? 'Update Driver' : 'Add Driver'}
+            <button 
+              type="submit" 
+              className="btn btn-primary flex-1"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : (editingId ? 'Update Driver' : 'Add Driver')}
             </button>
             <button
               type="button"

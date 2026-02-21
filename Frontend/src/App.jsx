@@ -12,7 +12,7 @@ import ExpensesAndFuel from './pages/ExpensesAndFuel'
 import DriverProfiles from './pages/DriverProfiles'
 import Analytics from './pages/Analytics'
 
-function App() {
+function AppContent() {
   const { isAuthenticated } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -21,25 +21,31 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="flex h-screen bg-gray-100">
-        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 overflow-auto">
-            <Routes>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/vehicles" element={<VehicleRegistry />} />
-              <Route path="/trips" element={<TripDispatcher />} />
-              <Route path="/maintenance" element={<MaintenanceLogs />} />
-              <Route path="/expenses" element={<ExpensesAndFuel />} />
-              <Route path="/drivers" element={<DriverProfiles />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </main>
-        </div>
+    <div className="flex h-screen bg-gray-100">
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <main className="flex-1 overflow-auto">
+          <Routes>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/vehicles" element={<VehicleRegistry />} />
+            <Route path="/trips" element={<TripDispatcher />} />
+            <Route path="/maintenance" element={<MaintenanceLogs />} />
+            <Route path="/expenses" element={<ExpensesAndFuel />} />
+            <Route path="/drivers" element={<DriverProfiles />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </main>
       </div>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   )
 }

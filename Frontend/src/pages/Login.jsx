@@ -1,15 +1,16 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store'
 
 function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [role, setRole] = useState('manager')
+  const [email, setEmail] = useState('manager@fleetflow.com')
+  const [password, setPassword] = useState('password123')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuthStore()
+  const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
@@ -24,18 +25,15 @@ function Login() {
     }
 
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      login(
-        { name: email.split('@')[0], email, role },
-        'mock-token-' + Date.now()
-      )
+    try {
+      await login(email, password)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.')
+      console.error('Login error:', err)
+    } finally {
       setLoading(false)
-    }, 1000)
-  }
-
-  const handleForgotPassword = () => {
-    alert('Password reset link would be sent to: ' + email)
+    }
   }
 
   return (
@@ -47,7 +45,7 @@ function Login() {
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
             {error}
           </div>
         )}
@@ -63,6 +61,7 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
               className="input-field"
+              disabled={loading}
             />
           </div>
 
@@ -76,44 +75,28 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="input-field"
+              disabled={loading}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              User Role
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="input-field"
-            >
-              <option value="manager">Fleet Manager</option>
-              <option value="dispatcher">Dispatcher</option>
-              <option value="safety">Safety Officer</option>
-              <option value="analyst">Financial Analyst</option>
-            </select>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn btn-primary py-3 text-lg font-semibold"
+            className="w-full btn btn-primary py-3 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
-        <button
-          onClick={handleForgotPassword}
-          className="w-full mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium"
-        >
-          Forgot Password?
-        </button>
-
-        <div className="mt-6 text-center text-sm text-gray-600">
-          <p>Demo Credentials:</p>
-          <p className="text-xs mt-2">Use any email with password</p>
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-gray-700">
+          <p className="font-semibold mb-2">👤 Test Credentials:</p>
+          <div className="space-y-1 text-xs font-mono">
+            <p><strong>Manager:</strong> manager@fleetflow.com</p>
+            <p><strong>Dispatcher:</strong> dispatcher@fleetflow.com</p>
+            <p><strong>Safety:</strong> safety@fleetflow.com</p>
+            <p><strong>Analyst:</strong> analyst@fleetflow.com</p>
+            <p className="mt-2"><strong>Password (all):</strong> password123</p>
+          </div>
         </div>
       </div>
     </div>

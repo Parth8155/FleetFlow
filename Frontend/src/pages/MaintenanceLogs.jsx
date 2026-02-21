@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFleetStore } from '../store'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
@@ -7,16 +7,27 @@ function MaintenanceLogs() {
   const {
     vehicles,
     maintenanceLogs,
+    fetchVehicles,
+    fetchMaintenanceLogs,
     addMaintenanceLog,
-    removeFromMaintenance,
+    completeMaintenanceLog,
+    loading,
+    error,
   } = useFleetStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     vehicleId: '',
     type: 'preventative',
     description: '',
     cost: '',
   })
+
+  useEffect(() => {
+    fetchVehicles()
+    fetchMaintenanceLogs()
+  }, [])
 
   const vehiclesInShop = vehicles.filter((v) => v.status === 'in-shop')
 
@@ -28,23 +39,30 @@ function MaintenanceLogs() {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitError('')
 
     if (!formData.vehicleId || !formData.description || !formData.cost) {
-      alert('Please fill in all fields')
+      setSubmitError('Please fill in all fields')
       return
     }
 
-    addMaintenanceLog({
-      ...formData,
-      vehicleId: parseInt(formData.vehicleId),
-      date: new Date().toISOString().split('T')[0],
-      status: 'in-progress',
-    })
-
-    resetForm()
-    setIsModalOpen(false)
+    setIsSubmitting(true)
+    try {
+      await addMaintenanceLog({
+        vehicleId: parseInt(formData.vehicleId),
+        type: formData.type,
+        description: formData.description,
+        cost: parseFloat(formData.cost),
+      })
+      resetForm()
+      setIsModalOpen(false)
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to log maintenance')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const resetForm = () => {
@@ -54,18 +72,25 @@ function MaintenanceLogs() {
       description: '',
       cost: '',
     })
+    setSubmitError('')
   }
 
-  const handleRemoveFromMaintenance = (vehicleId) => {
-    if (
-      window.confirm('Mark this vehicle as available and out of maintenance?')
-    ) {
-      removeFromMaintenance(vehicleId)
+  const handleCompleteMaintenanceLog = async (logId) => {
+    try {
+      await completeMaintenanceLog(logId)
+    } catch (err) {
+      alert(err.message || 'Failed to complete maintenance log')
     }
   }
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">
           Maintenance & Service Logs
@@ -89,6 +114,11 @@ function MaintenanceLogs() {
         }}
         title="Log Maintenance Service"
       >
+        {submitError && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+            {submitError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -153,8 +183,12 @@ function MaintenanceLogs() {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button type="submit" className="btn btn-primary flex-1">
-              Log Maintenance
+            <button 
+              type="submit" 
+              className="btn btn-primary flex-1"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Logging...' : 'Log Maintenance'}
             </button>
             <button
               type="button"
@@ -179,25 +213,34 @@ function MaintenanceLogs() {
             </h3>
           </div>
           <div className="p-6 space-y-3">
-            {vehiclesInShop.map((v) => (
-              <div
-                key={v.id}
-                className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-              >
-                <div>
-                  <p className="font-semibold">{v.name}</p>
-                  <p className="text-sm text-gray-600">
-                    {v.licensePlate} • {v.model}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRemoveFromMaintenance(v.id)}
-                  className="btn btn-success text-sm"
+            {vehiclesInShop.map((v) => {
+              const vehicleMaintenance = maintenanceLogs.find(
+                (log) => log.vehicleId === v.id && log.status !== 'completed'
+              )
+              return (
+                <div
+                  key={v.id}
+                  className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
                 >
-                  Mark Available
-                </button>
-              </div>
-            ))}
+                  <div>
+                    <p className="font-semibold">{v.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {v.licensePlate} • {v.model}
+                    </p>
+                  </div>
+                  {vehicleMaintenance && (
+                    <button
+                      onClick={() =>
+                        handleCompleteMaintenanceLog(vehicleMaintenance.id)
+                      }
+                      className="btn btn-success text-sm"
+                    >
+                      Mark Available
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

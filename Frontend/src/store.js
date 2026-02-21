@@ -1,190 +1,270 @@
 import { create } from 'zustand'
+import api from './services/api'
 
+/**
+ * Authentication Store
+ * Manages user authentication state and operations
+ */
 export const useAuthStore = create((set) => ({
-  user: null,
-  token: null,
-  isAuthenticated: false,
-  login: (user, token) => set({ user, token, isAuthenticated: true }),
-  logout: () => set({ user: null, token: null, isAuthenticated: false }),
+  user: JSON.parse(localStorage.getItem('user')) || null,
+  token: localStorage.getItem('authToken') || null,
+  isAuthenticated: !!localStorage.getItem('authToken'),
+  error: null,
+  loading: false,
+
+  /**
+   * Register new user
+   */
+  register: async (email, password, name, role = 'dispatcher') => {
+    set({ loading: true, error: null })
+    try {
+      const data = await api.auth.register(email, password, name, role)
+      set({
+        user: data.user,
+        token: data.token,
+        isAuthenticated: true,
+        loading: false,
+      })
+      return data
+    } catch (error) {
+      set({
+        error: error.message || 'Registration failed',
+        loading: false,
+      })
+      throw error
+    }
+  },
+
+  /**
+   * Login user
+   */
+  login: async (email, password) => {
+    set({ loading: true, error: null })
+    try {
+      const data = await api.auth.login(email, password)
+      set({
+        user: data.user,
+        token: data.token,
+        isAuthenticated: true,
+        loading: false,
+      })
+      return data
+    } catch (error) {
+      set({
+        error: error.message || 'Login failed',
+        loading: false,
+      })
+      throw error
+    }
+  },
+
+  /**
+   * Logout user
+   */
+  logout: async () => {
+    try {
+      await api.auth.logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+    set({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      error: null,
+    })
+  },
+
+  /**
+   * Clear error message
+   */
+  clearError: () => set({ error: null }),
 }))
 
-export const useFleetStore = create((set, get) => ({
-  vehicles: [
-    {
-      id: 1,
-      name: 'Van-05',
-      model: 'Toyota Hiace',
-      licensePlate: 'ABC-1234',
-      maxCapacity: 500,
-      type: 'van',
-      status: 'available',
-      odometer: 15000,
-      lastMaintenance: '2026-01-15',
-      region: 'North',
-    },
-    {
-      id: 2,
-      name: 'Truck-01',
-      model: 'Volvo FH16',
-      licensePlate: 'XYZ-5678',
-      maxCapacity: 2000,
-      type: 'truck',
-      status: 'on-trip',
-      odometer: 45000,
-      lastMaintenance: '2026-02-01',
-      region: 'South',
-    },
-  ],
+export const useFleetStore = create((set) => ({
+  vehicles: [],
+  drivers: [],
+  trips: [],
+  expenses: [],
+  maintenanceLogs: [],
+  loading: false,
+  error: null,
 
-  drivers: [
-    {
-      id: 1,
-      name: 'Alex Johnson',
-      licenseNumber: 'DL-001',
-      licenseExpiry: '2027-06-15',
-      licenseCategory: 'B+E',
-      status: 'on-duty',
-      safetyScore: 95,
-      tripsCompleted: 120,
-    },
-    {
-      id: 2,
-      name: 'Maria Garcia',
-      licenseNumber: 'DL-002',
-      licenseExpiry: '2026-12-20',
-      licenseCategory: 'C',
-      status: 'on-duty',
-      safetyScore: 88,
-      tripsCompleted: 95,
-    },
-  ],
+  // Vehicles
+  fetchVehicles: async () => {
+    set({ loading: true, error: null })
+    try {
+      const data = await api.vehicles.getAll()
+      set({ vehicles: data, loading: false })
+    } catch (error) {
+      set({ error: error.message, loading: false })
+    }
+  },
 
-  trips: [
-    {
-      id: 1,
-      vehicleId: 1,
-      driverId: 1,
-      cargoWeight: 450,
-      startPoint: 'Warehouse A',
-      endPoint: 'Distribution Center B',
-      status: 'completed',
-      startOdometer: 15000,
-      endOdometer: 15150,
-      createdAt: '2026-02-20',
-    },
-  ],
+  addVehicle: async (vehicle) => {
+    try {
+      const newVehicle = await api.vehicles.create(vehicle)
+      set((state) => ({ vehicles: [...state.vehicles, newVehicle] }))
+      return newVehicle
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
 
-  expenses: [
-    {
-      id: 1,
-      vehicleId: 1,
-      type: 'fuel',
-      amount: 2500,
-      unit: 45,
-      unitType: 'liters',
-      date: '2026-02-19',
-    },
-    {
-      id: 2,
-      vehicleId: 1,
-      type: 'maintenance',
-      amount: 5000,
-      description: 'Oil Change',
-      date: '2026-02-18',
-    },
-  ],
+  updateVehicle: async (id, updates) => {
+    try {
+      const updated = await api.vehicles.update(id, updates)
+      set((state) => ({
+        vehicles: state.vehicles.map((v) => (v.id === id ? updated : v)),
+      }))
+      return updated
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
 
-  maintenanceLogs: [
-    {
-      id: 1,
-      vehicleId: 1,
-      type: 'preventative',
-      description: 'Regular oil change',
-      cost: 5000,
-      date: '2026-02-18',
-      status: 'completed',
-    },
-  ],
+  deleteVehicle: async (id) => {
+    try {
+      await api.vehicles.delete(id)
+      set((state) => ({
+        vehicles: state.vehicles.filter((v) => v.id !== id),
+      }))
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
 
-  addVehicle: (vehicle) =>
-    set((state) => ({
-      vehicles: [...state.vehicles, { ...vehicle, id: Math.max(...state.vehicles.map((v) => v.id), 0) + 1 }],
-    })),
+  // Drivers
+  fetchDrivers: async () => {
+    set({ loading: true, error: null })
+    try {
+      const data = await api.drivers.getAll()
+      set({ drivers: data, loading: false })
+    } catch (error) {
+      set({ error: error.message, loading: false })
+    }
+  },
 
-  updateVehicle: (id, updates) =>
-    set((state) => ({
-      vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, ...updates } : v)),
-    })),
+  addDriver: async (driver) => {
+    try {
+      const newDriver = await api.drivers.create(driver)
+      set((state) => ({ drivers: [...state.drivers, newDriver] }))
+      return newDriver
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
 
-  deleteVehicle: (id) =>
-    set((state) => ({
-      vehicles: state.vehicles.filter((v) => v.id !== id),
-    })),
+  updateDriver: async (id, updates) => {
+    try {
+      const updated = await api.drivers.update(id, updates)
+      set((state) => ({
+        drivers: state.drivers.map((d) => (d.id === id ? updated : d)),
+      }))
+      return updated
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
 
-  addDriver: (driver) =>
-    set((state) => ({
-      drivers: [...state.drivers, { ...driver, id: Math.max(...state.drivers.map((d) => d.id), 0) + 1 }],
-    })),
+  // Trips
+  fetchTrips: async () => {
+    set({ loading: true, error: null })
+    try {
+      const data = await api.trips.getAll()
+      set({ trips: data, loading: false })
+    } catch (error) {
+      set({ error: error.message, loading: false })
+    }
+  },
 
-  updateDriver: (id, updates) =>
-    set((state) => ({
-      drivers: state.drivers.map((d) => (d.id === id ? { ...d, ...updates } : d)),
-    })),
+  addTrip: async (trip) => {
+    try {
+      const newTrip = await api.trips.create(trip)
+      set((state) => ({ trips: [...state.trips, newTrip] }))
+      return newTrip
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
 
-  addTrip: (trip) =>
-    set((state) => {
-      const vehicle = state.vehicles.find((v) => v.id === trip.vehicleId)
-      if (vehicle && trip.cargoWeight > vehicle.maxCapacity) {
-        throw new Error(`Cargo weight exceeds vehicle capacity`)
-      }
-      return {
-        trips: [...state.trips, { ...trip, id: Math.max(...state.trips.map((t) => t.id || 0), 0) + 1 }],
-        vehicles: state.vehicles.map((v) =>
-          v.id === trip.vehicleId ? { ...v, status: 'on-trip' } : v
+  completeTrip: async (tripId, endOdometer) => {
+    try {
+      const completed = await api.trips.complete(tripId)
+      set((state) => ({
+        trips: state.trips.map((t) => (t.id === tripId ? completed : t)),
+      }))
+      return completed
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
+
+  // Expenses
+  fetchExpenses: async () => {
+    set({ loading: true, error: null })
+    try {
+      const data = await api.expenses.getAll()
+      set({ expenses: data, loading: false })
+    } catch (error) {
+      set({ error: error.message, loading: false })
+    }
+  },
+
+  addExpense: async (expense) => {
+    try {
+      const newExpense = await api.expenses.create(expense)
+      set((state) => ({ expenses: [...state.expenses, newExpense] }))
+      return newExpense
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
+
+  // Maintenance Logs
+  fetchMaintenanceLogs: async () => {
+    set({ loading: true, error: null })
+    try {
+      const data = await api.maintenance.getAll()
+      set({ maintenanceLogs: data, loading: false })
+    } catch (error) {
+      set({ error: error.message, loading: false })
+    }
+  },
+
+  addMaintenanceLog: async (log) => {
+    try {
+      const newLog = await api.maintenance.create(log)
+      set((state) => ({ maintenanceLogs: [...state.maintenanceLogs, newLog] }))
+      return newLog
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
+
+  completeMaintenanceLog: async (logId) => {
+    try {
+      const completed = await api.maintenance.complete(logId)
+      set((state) => ({
+        maintenanceLogs: state.maintenanceLogs.map((l) =>
+          l.id === logId ? completed : l
         ),
-        drivers: state.drivers.map((d) =>
-          d.id === trip.driverId ? { ...d, status: 'on-trip' } : d
-        ),
-      }
-    }),
-
-  completeTrip: (tripId, endOdometer) =>
-    set((state) => {
-      const trip = state.trips.find((t) => t.id === tripId)
-      if (!trip) return state
-
-      return {
-        trips: state.trips.map((t) =>
-          t.id === tripId ? { ...t, status: 'completed', endOdometer } : t
-        ),
-        vehicles: state.vehicles.map((v) =>
-          v.id === trip.vehicleId ? { ...v, status: 'available', odometer: endOdometer } : v
-        ),
-        drivers: state.drivers.map((d) =>
-          d.id === trip.driverId ? { ...d, status: 'on-duty' } : d
-        ),
-      }
-    }),
-
-  addExpense: (expense) =>
-    set((state) => ({
-      expenses: [...state.expenses, { ...expense, id: Math.max(...state.expenses.map((e) => e.id), 0) + 1 }],
-    })),
-
-  addMaintenanceLog: (log) =>
-    set((state) => ({
-      maintenanceLogs: [...state.maintenanceLogs, { ...log, id: Math.max(...state.maintenanceLogs.map((l) => l.id), 0) + 1 }],
-      vehicles: state.vehicles.map((v) =>
-        v.id === log.vehicleId ? { ...v, status: 'in-shop' } : v
-      ),
-    })),
-
-  removeFromMaintenance: (vehicleId) =>
-    set((state) => ({
-      vehicles: state.vehicles.map((v) =>
-        v.id === vehicleId ? { ...v, status: 'available' } : v
-      ),
-    })),
+      }))
+      return completed
+    } catch (error) {
+      set({ error: error.message })
+      throw error
+    }
+  },
 }))
 
 export const useDashboardStore = create((set) => ({
