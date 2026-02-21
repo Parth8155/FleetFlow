@@ -26,7 +26,7 @@ FleetFlow Backend is a comprehensive fleet and logistics management system desig
 1. WHEN creating a vehicle record THEN the system SHALL require name/model, license plate (unique), max load capacity, and odometer reading
 2. WHEN a license plate is entered THEN the system SHALL enforce uniqueness constraints
 3. WHEN a vehicle status is updated to "Out of Service" THEN the system SHALL remove it from available vehicle pools
-4. WHEN retrieving vehicle data THEN the system SHALL provide filtering by vehicle type, status, and region
+4. WHEN retrieving vehicle data THEN the system SHALL provide filtering by vehicle type and status
 5. WHEN a vehicle is assigned to maintenance THEN the system SHALL automatically update status to "In Shop"
 
 ### Requirement 3: Trip Management and Dispatch System

@@ -49,7 +49,7 @@ export class AnalyticsService {
     const utilizationByVehicle = {}
     vehicles.forEach(v => {
       const vehicleTrips = recentTrips.filter(t => t.vehicleId === v.id)
-      utilizationByVehicle[v.name] = {
+      utilizationByVehicle[v.model] = {
         vehicleId: v.id,
         totalTrips: vehicleTrips.length,
         completedTrips: vehicleTrips.filter(t => t.status === 'completed').length,
@@ -136,7 +136,7 @@ export class AnalyticsService {
 
     return {
       vehicleId,
-      vehicleName: vehicle.name,
+      vehicleName: vehicle.model,
       acquisitionCost: vehicle.acquisitionCost,
       status: vehicle.status,
       revenue,
@@ -168,7 +168,7 @@ export class AnalyticsService {
             type: 'overdue',
             severity: 'high',
             vehicleId: vehicle.id,
-            vehicleName: vehicle.name,
+            vehicleName: vehicle.model,
             maintenanceId: m.id,
             description: m.description,
             scheduledDate: m.scheduledDate,
@@ -187,7 +187,7 @@ export class AnalyticsService {
             type: 'due-soon',
             severity: 'medium',
             vehicleId: vehicle.id,
-            vehicleName: vehicle.name,
+            vehicleName: vehicle.model,
             lastMaintenanceDate: vehicle.lastMaintenance,
             daysSinceLastMaintenance,
             recommendation: 'Schedule preventive maintenance',

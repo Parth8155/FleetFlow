@@ -25,15 +25,13 @@ model User {
 
 model Vehicle {
   id                String   @id @default(cuid())
-  name              String   @unique
-  model             String
+  model             String   @unique
   licensePlate      String   @unique
   maxCapacity       Float    // in kg
   type              String   // truck, van, bike
   status            String   @default("available") // available, on-trip, in-shop, retired
   odometer          Float    @default(0)
   lastMaintenance   DateTime?
-  region            String   // North, South, East, West
   acquisitionCost   Float    @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -68,11 +66,14 @@ model Trip {
   vehicleId         String
   driverId          String
   cargoWeight       Float    // in kg
+  estimatedFuelCost Float    @default(0) // in rupees
   startPoint        String
   endPoint          String
   status            String   @default("draft") // draft, dispatched, completed, cancelled
   startOdometer     Float
   endOdometer       Float?
+  fuelConsumed      Float?   // in liters
+  actualFuelCost    Float?   // in rupees
   startTime         DateTime @default(now())
   endTime           DateTime?
   createdAt         DateTime @default(now())

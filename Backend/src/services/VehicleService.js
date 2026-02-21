@@ -1,4 +1,6 @@
 import VehicleRepository from '../repositories/VehicleRepository.js'
+import DriverRepository from '../repositories/DriverRepository.js'
+import TripRepository from '../repositories/TripRepository.js'
 import { NotFoundError, ValidationError } from '../utils/errors.js'
 
 export class VehicleService {
@@ -15,7 +17,7 @@ export class VehicleService {
   }
 
   async createVehicle(vehicleData) {
-    if (!vehicleData.name || !vehicleData.maxCapacity || !vehicleData.licensePlate) {
+    if (!vehicleData.model || !vehicleData.maxCapacity || !vehicleData.licensePlate) {
       throw new ValidationError('Missing required vehicle fields')
     }
 
@@ -28,7 +30,7 @@ export class VehicleService {
     return VehicleRepository.create({
       ...vehicleData,
       status: 'available',
-      odometer: 0,
+      odometer: vehicleData.odometer || 0,
     })
   }
 
@@ -38,7 +40,21 @@ export class VehicleService {
   }
 
   async deleteVehicle(id) {
-    await this.getVehicleById(id)
+    const vehicle = await this.getVehicleById(id)
+
+    // Find if vehicle is on a trip
+    const activeTrip = await TripRepository.findOne({
+      vehicleId: id,
+      status: 'dispatched'
+    })
+
+    if (activeTrip) {
+      // If there's an active trip, free up the driver as well
+      await DriverRepository.updateStatus(activeTrip.driverId, 'on-duty')
+      // Cancel the trip since vehicle is being deleted
+      await TripRepository.updateStatus(activeTrip.id, 'cancelled')
+    }
+
     return VehicleRepository.delete(id)
   }
 
@@ -57,10 +73,6 @@ export class VehicleService {
 
   async getVehiclesByStatus(status, limit = 100, offset = 0) {
     return VehicleRepository.findByStatus(status, limit, offset)
-  }
-
-  async getVehiclesByRegion(region, limit = 100, offset = 0) {
-    return VehicleRepository.findMany({ region }, limit, offset)
   }
 
   async incrementOdometer(vehicleId, distance) {

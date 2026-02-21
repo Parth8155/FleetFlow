@@ -69,12 +69,30 @@ export const completeTrip = async (req, res, next) => {
   }
 
   try {
-    const { endOdometer } = req.body
-    const trip = await TripService.completeTrip(req.params.id, endOdometer)
+    const { endOdometer, fuelConsumed, actualFuelCost } = req.body
+    const trip = await TripService.completeTrip(
+      req.params.id, 
+      parseFloat(endOdometer), 
+      fuelConsumed ? parseFloat(fuelConsumed) : null,
+      actualFuelCost ? parseFloat(actualFuelCost) : null
+    )
 
     res.json({
       success: true,
       message: 'Trip completed successfully',
+      data: trip,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const cancelTrip = async (req, res, next) => {
+  try {
+    const trip = await TripService.cancelTrip(req.params.id)
+    res.json({
+      success: true,
+      message: 'Trip cancelled successfully',
       data: trip,
     })
   } catch (error) {

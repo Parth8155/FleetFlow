@@ -17,7 +17,7 @@ export class TripService {
   }
 
   async createTrip(tripData) {
-    if (!tripData.vehicleId || !tripData.driverId || !tripData.cargoWeight) {
+    if (!tripData.vehicleId || !tripData.driverId || !tripData.cargoWeight || tripData.estimatedFuelCost === undefined) {
       throw new ValidationError('Missing required trip fields')
     }
 
@@ -58,18 +58,43 @@ export class TripService {
   }
 
   async updateTrip(id, tripData) {
-    await this.getTripById(id)
+    const trip = await this.getTripById(id)
+    
+    // If the status is being changed to cancelled, free up vehicle and driver
+    if (tripData.status === 'cancelled' && trip.status === 'dispatched') {
+      await VehicleRepository.updateStatus(trip.vehicleId, 'available')
+      await DriverRepository.updateStatus(trip.driverId, 'on-duty')
+    }
+
     return TripRepository.update(id, tripData)
   }
 
-  async completeTrip(id, endOdometer) {
+  async cancelTrip(id) {
+    const trip = await this.getTripById(id)
+    if (trip.status === 'completed') {
+      throw new ValidationError('Cannot cancel a completed trip')
+    }
+
+    // Free up resources
+    await VehicleRepository.updateStatus(trip.vehicleId, 'available')
+    await DriverRepository.updateStatus(trip.driverId, 'on-duty')
+
+    return TripRepository.updateStatus(id, 'cancelled')
+  }
+
+  async completeTrip(id, endOdometer, fuelConsumed = null, actualFuelCost = null) {
     const trip = await this.getTripById(id)
 
-    // Complete the trip
-    const completed = await TripRepository.completeTrip(id, endOdometer)
+    if (endOdometer < trip.startOdometer) {
+      throw new ValidationError('End odometer cannot be less than start odometer')
+    }
 
-    // Update vehicle status and odometer
+    // Complete the trip
+    const completed = await TripRepository.completeTrip(id, endOdometer, fuelConsumed, actualFuelCost)
+
+    // Update vehicle status and current odometer
     await VehicleRepository.updateStatus(trip.vehicleId, 'available')
+    await VehicleRepository.update(trip.vehicleId, { odometer: endOdometer })
     
     // Update driver status and trip count
     await DriverRepository.updateStatus(trip.driverId, 'on-duty')

@@ -29,10 +29,12 @@ export class TripRepository extends BaseRepository {
     return this.update(id, { status, updatedAt: new Date() })
   }
 
-  async completeTrip(id, endOdometer) {
+  async completeTrip(id, endOdometer, fuelConsumed = null, actualFuelCost = null) {
     return this.update(id, {
       status: 'completed',
       endOdometer,
+      fuelConsumed,
+      actualFuelCost,
       endTime: new Date(),
       updatedAt: new Date(),
     })

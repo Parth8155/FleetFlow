@@ -91,7 +91,6 @@ interface Vehicle {
   currentOdometer: number;
   vehicleType: VehicleType;
   status: VehicleStatus;
-  region?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -269,7 +268,6 @@ CREATE TABLE vehicles (
   current_odometer INTEGER NOT NULL DEFAULT 0,
   vehicle_type VARCHAR(50) NOT NULL,
   status VARCHAR(50) NOT NULL DEFAULT 'available',
-  region VARCHAR(100),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -395,49 +393,3 @@ if (cargoWeight > vehicle.maxLoadCapacity) {
   );
 }
 ```
-
-## Testing Strategy
-
-### Unit Testing
-
-- **Controllers**: Test HTTP request/response handling and validation
-- **Services**: Test business logic and error conditions
-- **Repositories**: Test data access patterns and query logic
-- **Utilities**: Test helper functions and calculations
-
-### Integration Testing
-
-- **API Endpoints**: Test complete request flows with database
-- **Business Workflows**: Test multi-step processes (trip creation, maintenance scheduling)
-- **Authentication**: Test role-based access control across endpoints
-
-### Test Data Management
-
-```typescript
-// Test fixtures for consistent test data
-export const testVehicle: Partial<Vehicle> = {
-  name: 'Test Van',
-  model: 'Ford Transit',
-  licensePlate: 'TEST-001',
-  maxLoadCapacity: 1000,
-  vehicleType: VehicleType.VAN,
-  status: VehicleStatus.AVAILABLE
-};
-
-export const testDriver: Partial<Driver> = {
-  name: 'Test Driver',
-  email: 'test@example.com',
-  licenseNumber: 'DL123456',
-  licenseExpiry: new Date('2025-12-31'),
-  licenseCategory: 'B',
-  status: DriverStatus.ON_DUTY
-};
-```
-
-### Performance Testing
-
-- **Load Testing**: Simulate concurrent users accessing the system
-- **Database Performance**: Test query performance with large datasets
-- **Real-time Updates**: Test status change propagation under load
-
-The testing strategy ensures reliability and maintainability while supporting the complex business logic requirements of fleet management operations.

@@ -28,7 +28,7 @@ async function main() {
         data: {
           email: 'manager@fleetflow.com',
           password: hashedPassword,
-          name: 'Fleet Manager',
+          name: 'Arjun Mehta',
           role: 'manager',
           status: 'active',
         },
@@ -37,7 +37,7 @@ async function main() {
         data: {
           email: 'dispatcher@fleetflow.com',
           password: hashedPassword,
-          name: 'Trip Dispatcher',
+          name: 'Sanjay Gupta',
           role: 'dispatcher',
           status: 'active',
         },
@@ -46,7 +46,7 @@ async function main() {
         data: {
           email: 'safety@fleetflow.com',
           password: hashedPassword,
-          name: 'Safety Officer',
+          name: 'Karthik Raman',
           role: 'safety',
           status: 'active',
         },
@@ -55,7 +55,7 @@ async function main() {
         data: {
           email: 'analyst@fleetflow.com',
           password: hashedPassword,
-          name: 'Data Analyst',
+          name: 'Anjali Sharma',
           role: 'analyst',
           status: 'active',
         },
@@ -69,85 +69,73 @@ async function main() {
     const vehicles = await Promise.all([
       prisma.vehicle.create({
         data: {
-          name: 'Vehicle Delhi-01',
-          model: 'Volvo FM 460',
-          licensePlate: 'DL01XX9999',
-          maxCapacity: 20000, // 20 tons
+          model: 'BharatBenz 3523R',
+          licensePlate: 'MH04JK1234',
+          maxCapacity: 25000, 
           type: 'truck',
           status: 'available',
           odometer: 45000,
-          region: 'Delhi',
-          acquisitionCost: 4500000,
+          acquisitionCost: 3800000,
           lastMaintenance: new Date('2026-02-01'),
         },
       }),
       prisma.vehicle.create({
         data: {
-          name: 'Vehicle Delhi-02',
-          model: 'Tata LPT 2518',
-          licensePlate: 'DL02XX9999',
-          maxCapacity: 18000,
+          model: 'Tata Signa 4825.T',
+          licensePlate: 'GJ01XY9876',
+          maxCapacity: 32000,
           type: 'truck',
           status: 'available',
           odometer: 32500,
-          region: 'Delhi',
-          acquisitionCost: 3200000,
+          acquisitionCost: 4200000,
           lastMaintenance: new Date('2026-01-15'),
         },
       }),
       prisma.vehicle.create({
         data: {
-          name: 'Vehicle Mumbai-01',
-          model: 'Ashok Leyland AL 3210',
-          licensePlate: 'MH01XX9999',
-          maxCapacity: 15000,
+          model: 'Ashok Leyland Ecomet 1615',
+          licensePlate: 'TN02AB5555',
+          maxCapacity: 16000,
           type: 'truck',
-          status: 'available',
+          status: 'available', // Dispatched trip 3
           odometer: 67890,
-          region: 'Mumbai',
           acquisitionCost: 2800000,
           lastMaintenance: new Date('2026-01-30'),
         },
       }),
       prisma.vehicle.create({
         data: {
-          name: 'Vehicle Bangalore-01',
-          model: 'Eicher Pro 1084',
-          licensePlate: 'KA01XX9999',
-          maxCapacity: 12000,
+          model: 'Mahindra Blazo X 49',
+          licensePlate: 'KA03MN4321',
+          maxCapacity: 49000,
           type: 'truck',
           status: 'available',
           odometer: 28500,
-          region: 'Bangalore',
-          acquisitionCost: 2400000,
+          acquisitionCost: 4500000,
           lastMaintenance: new Date('2025-12-20'),
         },
       }),
       prisma.vehicle.create({
         data: {
-          name: 'Vehicle Delhi-Van-01',
-          model: 'Maruti Suzuki Super Carry',
-          licensePlate: 'DL03XX9999',
-          maxCapacity: 1000,
+          model: 'Tata Ace Gold (Chota Hathi)',
+          licensePlate: 'DL05ZZ7777',
+          maxCapacity: 750,
           type: 'van',
-          status: 'in-shop',
+          status: 'available',
           odometer: 12000,
-          region: 'Delhi',
-          acquisitionCost: 450000,
+          acquisitionCost: 550000,
           lastMaintenance: new Date('2026-02-18'),
         },
       }),
       prisma.vehicle.create({
         data: {
-          name: 'Vehicle Delhi-Bike-01',
-          model: 'Hero Splendor Plus',
-          licensePlate: 'DL04XX9999',
-          maxCapacity: 100,
+          model: 'TVS XL100 Heavy Duty',
+          licensePlate: 'UP16RT9999',
+          maxCapacity: 150,
           type: 'bike',
           status: 'available',
           odometer: 5000,
-          region: 'Delhi',
-          acquisitionCost: 75000,
+          acquisitionCost: 45000,
           lastMaintenance: new Date('2026-02-10'),
         },
       }),
@@ -188,7 +176,7 @@ async function main() {
           licenseNumber: 'MH5678901234',
           licenseExpiry: new Date('2028-03-10'),
           licenseCategory: 'HCV',
-          status: 'off-duty',
+          status: 'on-duty', // Trip 3
           safetyScore: 92,
           tripsCompleted: 156,
           lastTripDate: new Date('2026-02-19'),
@@ -222,204 +210,23 @@ async function main() {
 
     console.log(`✅ Created ${drivers.length} drivers`)
 
-    // Create trips
-    console.log('📦 Creating trips...')
-    const trips = await Promise.all([
-      prisma.trip.create({
-        data: {
-          vehicleId: vehicles[0].id,
-          driverId: drivers[0].id,
-          cargoWeight: 18000,
-          startPoint: 'Delhi Warehouse',
-          endPoint: 'Mumbai Distribution Center',
-          status: 'completed',
-          startOdometer: 45000,
-          endOdometer: 45450,
-          startTime: new Date('2026-02-18'),
-          endTime: new Date('2026-02-19'),
-        },
-      }),
-      prisma.trip.create({
-        data: {
-          vehicleId: vehicles[1].id,
-          driverId: drivers[1].id,
-          cargoWeight: 15000,
-          startPoint: 'Delhi Factory',
-          endPoint: 'Bangalore Depot',
-          status: 'completed',
-          startOdometer: 32500,
-          endOdometer: 32890,
-          startTime: new Date('2026-02-17'),
-          endTime: new Date('2026-02-18'),
-        },
-      }),
-      prisma.trip.create({
-        data: {
-          vehicleId: vehicles[2].id,
-          driverId: drivers[2].id,
-          cargoWeight: 12000,
-          startPoint: 'Mumbai Port',
-          endPoint: 'Pune Market',
-          status: 'dispatched',
-          startOdometer: 67890,
-          startTime: new Date('2026-02-21'),
-        },
-      }),
-      prisma.trip.create({
-        data: {
-          vehicleId: vehicles[3].id,
-          driverId: drivers[3].id,
-          cargoWeight: 8000,
-          startPoint: 'Bangalore Hub',
-          endPoint: 'Hyderabad Center',
-          status: 'draft',
-          startOdometer: 28500,
-        },
-      }),
-    ])
-
-    console.log(`✅ Created ${trips.length} trips`)
 
     // Create maintenance records
     console.log('🔧 Creating maintenance records...')
-    const maintenance = await Promise.all([
-      prisma.maintenanceRecord.create({
-        data: {
-          vehicleId: vehicles[4].id,
-          type: 'preventative',
-          description: 'Engine oil change and filter replacement',
-          cost: 5000,
-          status: 'in-progress',
-          scheduledDate: new Date('2026-02-18'),
-          completedDate: null,
-        },
-      }),
-      prisma.maintenanceRecord.create({
-        data: {
-          vehicleId: vehicles[0].id,
-          type: 'reactive',
-          description: 'Brake pad replacement (worn out)',
-          cost: 12000,
-          status: 'completed',
-          scheduledDate: new Date('2026-02-01'),
-          completedDate: new Date('2026-02-01'),
-        },
-      }),
-      prisma.maintenanceRecord.create({
-        data: {
-          vehicleId: vehicles[1].id,
-          type: 'preventative',
-          description: 'Tire rotation and air pressure check',
-          cost: 3000,
-          status: 'scheduled',
-          scheduledDate: new Date('2026-02-25'),
-          completedDate: null,
-        },
-      }),
-      prisma.maintenanceRecord.create({
-        data: {
-          vehicleId: vehicles[2].id,
-          type: 'emergency',
-          description: 'Engine overheating - cooling system flush',
-          cost: 18000,
-          status: 'completed',
-          scheduledDate: new Date('2026-01-30'),
-          completedDate: new Date('2026-01-30'),
-        },
-      }),
-    ])
+  
 
-    console.log(`✅ Created ${maintenance.length} maintenance records`)
 
-    // Create expenses
-    console.log('💰 Creating expenses...')
-    const expenses = await Promise.all([
-      prisma.expense.create({
-        data: {
-          vehicleId: vehicles[0].id,
-          type: 'fuel',
-          amount: 8500,
-          units: 50,
-          description: 'Diesel fuel - Delhi to Mumbai trip',
-          date: new Date('2026-02-19'),
-        },
-      }),
-      prisma.expense.create({
-        data: {
-          vehicleId: vehicles[0].id,
-          type: 'fuel',
-          amount: 7200,
-          units: 45,
-          description: 'Diesel fuel - Return trip',
-          date: new Date('2026-02-20'),
-        },
-      }),
-      prisma.expense.create({
-        data: {
-          vehicleId: vehicles[1].id,
-          type: 'fuel',
-          amount: 6500,
-          units: 40,
-          description: 'Diesel fuel - Delhi to Bangalore',
-          date: new Date('2026-02-18'),
-        },
-      }),
-      prisma.expense.create({
-        data: {
-          vehicleId: vehicles[1].id,
-          type: 'maintenance',
-          amount: 8000,
-          units: 1,
-          description: 'Transmission fluid change',
-          date: new Date('2026-02-15'),
-        },
-      }),
-      prisma.expense.create({
-        data: {
-          vehicleId: vehicles[2].id,
-          type: 'fuel',
-          amount: 5800,
-          units: 35,
-          description: 'Diesel fuel - Mumbai to Pune',
-          date: new Date('2026-02-21'),
-        },
-      }),
-      prisma.expense.create({
-        data: {
-          vehicleId: vehicles[2].id,
-          type: 'other',
-          amount: 2500,
-          units: 1,
-          description: 'Toll charges',
-          date: new Date('2026-02-21'),
-        },
-      }),
-    ])
-
-    console.log(`✅ Created ${expenses.length} expenses`)
 
     // Create dashboard metrics
     console.log('📊 Creating dashboard metrics...')
-    const dashboard = await prisma.dashboard.create({
-      data: {
-        activeFleet: 5,
-        maintenanceAlerts: 1,
-        utilizationRate: 66.67,
-        pendingCargo: 1,
-      },
-    })
+ 
 
     console.log(`✅ Created dashboard metrics`)
 
     console.log('\n✨ Database seeding completed successfully!')
     console.log(`
 📊 Summary:
-   - Users: ${users.length}
-   - Vehicles: ${vehicles.length}
-   - Drivers: ${drivers.length}
-   - Trips: ${trips.length}
-   - Maintenance Records: ${maintenance.length}
-   - Expenses: ${expenses.length}
+ 
 
 Test Credentials:
    - Manager: manager@fleetflow.com / password123
